@@ -377,7 +377,10 @@ function calcDay(dateStr, sh){
   const otPay = ot1*settings.rate*(Number(settings.ot.tier1Pct)||0)/100
               + ot2*settings.rate*(Number(settings.ot.tier2Pct)||0)/100;
   const gross = base + tillaeg + nightPay + otPay;
-  return {worked, reg, ot, night, sched, base, tillaeg, nightPay, otPay, gross};
+  const regBase    = reg*settings.rate;                       // base for regular hours only
+  const regTillaeg = reg*standingTillaeg();                   // tillæg for regular hours only
+  const otFull     = ot*(settings.rate + standingTillaeg()) + otPay; // full OT pay: base + tillæg + supplement
+  return {worked, reg, ot, night, sched, base, tillaeg, nightPay, otPay, regBase, regTillaeg, otFull, gross};
 }
 
 function estNet(gross){
@@ -429,10 +432,10 @@ function renderLivePreview(){
   if(c.worked>0){
     brk.style.display="block";
     brk.innerHTML =
-      li("Base "+fmtH(c.worked)+" × "+settings.rate, c.base) +
-      li("Tillæg "+fmtH(c.worked)+" × "+(Math.round(standingTillaeg()*100)/100), c.tillaeg) +
+      li("Base "+fmtH(c.reg)+" × "+settings.rate, c.regBase) +
+      li("Tillæg "+fmtH(c.reg)+" × "+(Math.round(standingTillaeg()*100)/100), c.regTillaeg) +
       (c.nightPay>0?li("Holddrift "+fmtH(c.night)+" × "+settings.night.rate, c.nightPay):"") +
-      (c.otPay>0?li("Overtime "+fmtH(c.ot), c.otPay):"") +
+      (c.ot>0?li("Overtime "+fmtH(c.ot)+" (incl. base+tillæg)", c.otFull):"") +
       li("Gross", c.gross, true);
   } else { brk.style.display="none"; }
 }
@@ -452,7 +455,7 @@ function renderSummary(){
   const r=periodRange(viewAnchor);
   document.getElementById("monthLabel").textContent = periodLabel(r);
   const dates = eachDate(r.start, r.end);
-  let t={worked:0,night:0,ot:0,base:0,tillaeg:0,nightPay:0,otPay:0,gross:0,days:0};
+  let t={worked:0,night:0,ot:0,base:0,tillaeg:0,nightPay:0,otPay:0,regBase:0,regTillaeg:0,otFull:0,gross:0,days:0};
   const list = document.getElementById("entryList");
   list.innerHTML="";
   const rowsHtml=[];
@@ -470,6 +473,7 @@ function renderSummary(){
     if(c.worked<=0) return;
     t.worked+=c.worked; t.night+=c.night; t.ot+=c.ot;
     t.base+=c.base; t.tillaeg+=c.tillaeg; t.nightPay+=c.nightPay; t.otPay+=c.otPay; t.gross+=c.gross; t.days++;
+    t.regBase+=c.regBase; t.regTillaeg+=c.regTillaeg; t.otFull+=c.otFull;
     rowsHtml.push(`<div class="entry"><div><div class="d">${dateLbl}</div>
       <div class="meta">${rd.start}–${rd.end}${Number(rd.brk)?` · ${rd.brk}m`:""} · ${fmtH(c.worked)}${rd.note?` · ${escapeHtml(rd.note)}`:""}</div></div>
       <div class="amt">${fmtMoney(c.gross)}
@@ -482,8 +486,8 @@ function renderSummary(){
   document.getElementById("sumTotal").textContent = fmtMoney(t.gross);
   document.getElementById("sumNet").textContent   = fmtMoney(estNet(t.gross));
   document.getElementById("sumBrk").innerHTML =
-    li("Base pay", t.base) + li("Tillæg (per hour)", t.tillaeg) +
-    li("Holddrift (night)", t.nightPay) + li("Overtime", t.otPay) +
+    li("Base pay (regular)", t.regBase) + li("Tillæg (regular)", t.regTillaeg) +
+    li("Holddrift (night)", t.nightPay) + li("Overtime — incl. base + tillæg", t.otFull) +
     li("Gross total", t.gross, true);
   document.getElementById("sumWorked").textContent = fmtH(t.worked);
   document.getElementById("sumNightH").textContent = fmtH(t.night);
