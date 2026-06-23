@@ -174,6 +174,13 @@
       <div class="brk" id="fp-net" style="display:none;"></div>
     </div>
 
+    <div class="card">
+      <h3 style="margin-bottom:6px;">Fritvalgskonto</h3>
+      <div class="hint" style="margin-bottom:10px;">Drew from your fritvalgskonto this period? Enter it <b>before tax</b>. Taxed like feriepenge: AM-bidrag 8% + A-skat (no fradrag), net added to this period's total.</div>
+      <div class="field" style="margin-bottom:0;"><label>Drawn this period (before tax)</label><input type="number" id="fv-input" inputmode="decimal" step="0.01" placeholder="0" /></div>
+      <div class="brk" id="fv-net" style="display:none;"></div>
+    </div>
+
     <h3 style="margin:18px 4px 12px;">Days</h3>
     <div id="entryList"></div>
   </div>
@@ -264,6 +271,7 @@ const DAYS = ["Sun","Mon","Tue","Wed","Thu","Fri","Sat"];
 const LS_SET = "salary.settings.v3";
 const LS_ENT = "salary.entries.v2";
 const LS_FP  = "salary.feriepenge.v1";   // { periodStartKey: grossAmount }
+const LS_FV  = "salary.fritvalg.v1";     // { periodStartKey: grossAmount }
 
 const defaultSettings = {
   rate: 158.45,            // Timeløn
@@ -293,6 +301,7 @@ let settings = loadSettings();
 // entries hold ONLY exceptions: { "YYYY-MM-DD": {start,end,brk,note} }  or  {off:true,note}
 let entries = load(LS_ENT, {});
 let feriepenge = (function(){ try{ return JSON.parse(localStorage.getItem(LS_FP))||{}; }catch(e){ return {}; } })();
+let fritvalg   = (function(){ try{ return JSON.parse(localStorage.getItem(LS_FV))||{}; }catch(e){ return {}; } })();
 let viewAnchor = new Date();
 
 /* ---------- pay period: 16th → 15th ---------- */
@@ -319,7 +328,7 @@ function loadSettings(){
   if(s.breakMin==null) s.breakMin = defaultSettings.breakMin;
   return s;
 }
-function save(){ localStorage.setItem(LS_SET, JSON.stringify(settings)); localStorage.setItem(LS_ENT, JSON.stringify(entries)); localStorage.setItem(LS_FP, JSON.stringify(feriepenge)); }
+function save(){ localStorage.setItem(LS_SET, JSON.stringify(settings)); localStorage.setItem(LS_ENT, JSON.stringify(entries)); localStorage.setItem(LS_FP, JSON.stringify(feriepenge)); localStorage.setItem(LS_FV, JSON.stringify(fritvalg)); }
 
 /* ---------- helpers ---------- */
 function fmtMoney(n){
@@ -403,6 +412,22 @@ function feriepengeNet(g){
   const am = (Number(settings.tax.am)||0)/100;
   const p  = (Number(settings.tax.pct)||0)/100;
   return g * (1-am) * (1-p);
+}
+/* render the gross → AM → A-skat → net detail box for a feriepenge/fritvalg input */
+function renderExtraBox(inputId, boxId, gross){
+  const inp=document.getElementById(inputId);
+  if(document.activeElement!==inp) inp.value = gross ? gross : "";
+  const box=document.getElementById(boxId);
+  if(gross>0){
+    const amPart  = gross*(Number(settings.tax.am)||0)/100;
+    const taxPart = (gross-amPart)*(Number(settings.tax.pct)||0)/100;
+    box.style.display="block";
+    box.innerHTML =
+      li("Gross", gross) +
+      li("− AM-bidrag "+(Number(settings.tax.am)||0)+"%", -amPart) +
+      li("− A-skat "+(Number(settings.tax.pct)||0)+"% (no fradrag)", -taxPart) +
+      li("Net (added to total)", feriepengeNet(gross), true);
+  } else { box.style.display="none"; }
 }
 
 /* ---------- tracker (exceptions) ---------- */
@@ -500,30 +525,21 @@ function renderSummary(){
 
   const pKey = ymd(r.start);
   const fpGross = Number(feriepenge[pKey])||0;
-  const fpNet = feriepengeNet(fpGross);
+  const fvGross = Number(fritvalg[pKey])||0;
+  const extraGross = fpGross + fvGross;
+  const extraNet = feriepengeNet(fpGross) + feriepengeNet(fvGross);
 
-  document.getElementById("sumTotal").textContent = fmtMoney(t.gross + fpGross);
-  document.getElementById("sumNet").textContent   = fmtMoney(estNet(t.gross) + fpNet);
+  document.getElementById("sumTotal").textContent = fmtMoney(t.gross + extraGross);
+  document.getElementById("sumNet").textContent   = fmtMoney(estNet(t.gross) + extraNet);
   document.getElementById("sumBrk").innerHTML =
     li("Base pay (regular)", t.regBase) + li("Tillæg (regular)", t.regTillaeg) +
     li("Holddrift (night)", t.nightPay) + li("Overtime — incl. base + tillæg", t.otFull) +
     (fpGross>0?li("Feriepenge (gross)", fpGross):"") +
-    li("Gross total", t.gross + fpGross, true);
+    (fvGross>0?li("Fritvalgskonto (gross)", fvGross):"") +
+    li("Gross total", t.gross + extraGross, true);
 
-  // feriepenge input + net detail
-  const fpIn = document.getElementById("fp-input");
-  if(document.activeElement!==fpIn) fpIn.value = fpGross ? fpGross : "";
-  const fpBox = document.getElementById("fp-net");
-  if(fpGross>0){
-    const amPart = fpGross*(Number(settings.tax.am)||0)/100;
-    const taxPart = (fpGross-amPart)*(Number(settings.tax.pct)||0)/100;
-    fpBox.style.display="block";
-    fpBox.innerHTML =
-      li("Feriepenge gross", fpGross) +
-      li("− AM-bidrag "+(Number(settings.tax.am)||0)+"%", -amPart) +
-      li("− A-skat "+(Number(settings.tax.pct)||0)+"% (no fradrag)", -taxPart) +
-      li("Feriepenge net (added to total)", fpNet, true);
-  } else { fpBox.style.display="none"; }
+  renderExtraBox("fp-input", "fp-net", fpGross);
+  renderExtraBox("fv-input", "fv-net", fvGross);
   document.getElementById("sumWorked").textContent = fmtH(t.worked);
   document.getElementById("sumNightH").textContent = fmtH(t.night);
   document.getElementById("sumOt").textContent = fmtH(t.ot);
@@ -643,6 +659,12 @@ document.getElementById("fp-input").addEventListener("change", ()=>{
   if(v>0) feriepenge[pKey]=v; else delete feriepenge[pKey];
   save(); renderSummary();
 });
+document.getElementById("fv-input").addEventListener("change", ()=>{
+  const pKey=ymd(periodRange(viewAnchor).start);
+  const v=Number(document.getElementById("fv-input").value)||0;
+  if(v>0) fritvalg[pKey]=v; else delete fritvalg[pKey];
+  save(); renderSummary();
+});
 
 document.getElementById("prevM").addEventListener("click", ()=>{ const s=periodRange(viewAnchor).start; viewAnchor=new Date(s.getFullYear(), s.getMonth()-1, 16); renderSummary(); });
 document.getElementById("nextM").addEventListener("click", ()=>{ const s=periodRange(viewAnchor).start; viewAnchor=new Date(s.getFullYear(), s.getMonth()+1, 16); renderSummary(); });
@@ -666,7 +688,7 @@ document.getElementById("btn-add-til").addEventListener("click", ()=>{
 });
 
 document.getElementById("btn-export").addEventListener("click", ()=>{
-  const blob=new Blob([JSON.stringify({settings,entries,feriepenge},null,2)],{type:"application/json"});
+  const blob=new Blob([JSON.stringify({settings,entries,feriepenge,fritvalg},null,2)],{type:"application/json"});
   const a=document.createElement("a"); a.href=URL.createObjectURL(blob);
   a.download="salary-backup-"+todayStr()+".json"; a.click();
 });
@@ -678,6 +700,7 @@ document.getElementById("file-import").addEventListener("change", e=>{
     if(d.settings){ settings=normSettings(Object.assign(JSON.parse(JSON.stringify(defaultSettings)),d.settings)); }
     if(d.entries) entries=d.entries;
     if(d.feriepenge) feriepenge=d.feriepenge;
+    if(d.fritvalg) fritvalg=d.fritvalg;
     save(); renderAll(); renderSettings(); refreshFormState(); toast("Imported");
   }catch(err){ toast("Bad file"); } };
   r.readAsText(f);
@@ -686,8 +709,8 @@ function normSettings(s){ s.night=Object.assign({},defaultSettings.night,s.night
 
 document.getElementById("btn-clear").addEventListener("click", ()=>{
   if(confirm("Delete ALL exceptions and reset settings? This can't be undone.")){
-    localStorage.removeItem(LS_SET); localStorage.removeItem(LS_ENT); localStorage.removeItem(LS_FP);
-    settings=loadSettings(); entries={}; feriepenge={}; renderAll(); renderSettings(); refreshFormState(); toast("Cleared");
+    localStorage.removeItem(LS_SET); localStorage.removeItem(LS_ENT); localStorage.removeItem(LS_FP); localStorage.removeItem(LS_FV);
+    settings=loadSettings(); entries={}; feriepenge={}; fritvalg={}; renderAll(); renderSettings(); refreshFormState(); toast("Cleared");
   }
 });
 
