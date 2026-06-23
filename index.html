@@ -1,0 +1,654 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
+<meta name="apple-mobile-web-app-capable" content="yes" />
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+<meta name="theme-color" content="#0f1115" />
+<title>Salary Tracker</title>
+<style>
+  :root{
+    --bg:#0f1115; --card:#1a1d24; --card2:#22262f; --line:#2c313c;
+    --txt:#e8eaed; --muted:#9aa0aa; --accent:#4f8cff; --accent2:#2bd47a;
+    --ot:#ffb02e; --night:#a78bfa; --danger:#ff5a5f; --radius:16px;
+  }
+  *{box-sizing:border-box; -webkit-tap-highlight-color:transparent;}
+  html,body{margin:0; padding:0;}
+  body{
+    background:var(--bg); color:var(--txt);
+    font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;
+    padding:env(safe-area-inset-top) 0 0 0; padding-bottom:84px;
+    max-width:560px; margin:0 auto; min-height:100vh;
+  }
+  h1,h2,h3{margin:0;}
+  .wrap{padding:16px;}
+  header{padding:18px 16px 8px; display:flex; align-items:baseline; justify-content:space-between;}
+  header h1{font-size:22px; letter-spacing:-.3px;}
+  header .sub{color:var(--muted); font-size:13px;}
+  .card{background:var(--card); border:1px solid var(--line); border-radius:var(--radius); padding:16px; margin-bottom:14px;}
+  .row{display:flex; gap:10px;}
+  .row>*{flex:1;}
+  label{display:block; font-size:12px; color:var(--muted); margin:0 0 5px 2px; text-transform:uppercase; letter-spacing:.4px;}
+  input,select{
+    width:100%; background:var(--card2); border:1px solid var(--line); color:var(--txt);
+    border-radius:12px; padding:13px 12px; font-size:16px; outline:none;
+  }
+  input:focus,select:focus{border-color:var(--accent);}
+  .field{margin-bottom:12px;}
+  button{
+    border:none; border-radius:12px; padding:14px; font-size:16px; font-weight:600;
+    background:var(--accent); color:#fff; width:100%; cursor:pointer;
+  }
+  button.ghost{background:var(--card2); color:var(--txt); border:1px solid var(--line);}
+  button.danger{background:transparent; color:var(--danger); border:1px solid var(--danger);}
+  button.mini{padding:8px 10px; font-size:13px; width:auto; background:var(--card2); border:1px solid var(--line); color:var(--txt);}
+  .big{font-size:34px; font-weight:700; letter-spacing:-1px;}
+  .big.green{color:var(--accent2);}
+  .muted{color:var(--muted);}
+  .pill{display:inline-block; font-size:11px; padding:3px 8px; border-radius:20px; background:var(--card2); color:var(--muted); border:1px solid var(--line);}
+  .split{display:flex; justify-content:space-between; align-items:center;}
+  .stat{flex:1; text-align:center;}
+  .stat .n{font-size:19px; font-weight:700;}
+  .stat .l{font-size:11px; color:var(--muted); text-transform:uppercase; letter-spacing:.4px;}
+  .entry{display:flex; align-items:center; justify-content:space-between; padding:13px 14px; border:1px solid var(--line); border-radius:12px; margin-bottom:9px; background:var(--card);}
+  .entry.off{opacity:.6;}
+  .entry .d{font-weight:600;}
+  .entry .meta{font-size:12px; color:var(--muted); margin-top:3px;}
+  .entry .amt{text-align:right; font-weight:700; white-space:nowrap;}
+  .entry .amt .tag{font-size:11px; font-weight:600; display:block;}
+  .entry .amt .tag.ot{color:var(--ot);}
+  .entry .amt .tag.night{color:var(--night);}
+  .entry .amt .tag.adj{color:var(--accent);}
+  .nav{position:fixed; bottom:0; left:0; right:0; max-width:560px; margin:0 auto; display:flex; background:var(--card); border-top:1px solid var(--line); padding-bottom:env(safe-area-inset-bottom);}
+  .nav button{background:none; color:var(--muted); font-weight:500; font-size:11px; padding:10px 0 12px; border-radius:0; display:flex; flex-direction:column; align-items:center; gap:3px;}
+  .nav button.active{color:var(--accent);}
+  .nav .ic{font-size:20px;}
+  .tab{display:none;}
+  .tab.active{display:block;}
+  .month-nav{display:flex; align-items:center; justify-content:space-between; margin-bottom:14px;}
+  .month-nav button{width:44px; padding:10px; background:var(--card2); border:1px solid var(--line);}
+  .month-nav .m{font-weight:700; font-size:17px;}
+  .sched-day{display:flex; align-items:center; gap:8px; margin-bottom:8px;}
+  .sched-day .nm{width:40px; font-size:13px; color:var(--muted);}
+  .sched-day input{padding:9px 8px; flex:1; min-width:0;}
+  .sched-day .dash{color:var(--muted);}
+  .hint{font-size:12px; color:var(--muted); margin:6px 2px 0; line-height:1.5;}
+  .empty{text-align:center; color:var(--muted); padding:30px 10px; font-size:14px;}
+  .toast{position:fixed; bottom:96px; left:50%; transform:translateX(-50%); background:var(--accent2); color:#07210f; padding:10px 18px; border-radius:30px; font-weight:600; font-size:14px; opacity:0; transition:opacity .25s; pointer-events:none; z-index:50;}
+  .toast.show{opacity:1;}
+  .calc-out{display:flex; gap:8px; margin-top:6px;}
+  .calc-out .box{flex:1; background:var(--card2); border:1px solid var(--line); border-radius:12px; padding:10px 6px; text-align:center;}
+  .calc-out .box .v{font-weight:700; font-size:16px;}
+  .calc-out .box .k{font-size:10px; color:var(--muted); text-transform:uppercase;}
+  .brk{margin-top:12px; border-top:1px solid var(--line); padding-top:10px;}
+  .brk .li{display:flex; justify-content:space-between; font-size:13px; padding:3px 0; color:var(--muted);}
+  .brk .li b{color:var(--txt); font-weight:600;}
+  .brk .li.total{font-size:15px; color:var(--txt); font-weight:700; margin-top:4px;}
+  .til-row{display:flex; gap:8px; align-items:center; margin-bottom:8px;}
+  .til-row input.nm{flex:2;}
+  .til-row input.rt{flex:1;}
+  .til-row .x{flex:0 0 auto; width:38px; padding:9px 0; text-align:center; background:var(--card2); border:1px solid var(--line); border-radius:10px; color:var(--danger); cursor:pointer; font-size:18px;}
+  .statusline{font-size:12px; padding:8px 10px; border-radius:10px; background:var(--card2); border:1px solid var(--line); margin-bottom:10px; color:var(--muted);}
+  .statusline b{color:var(--txt);}
+  details{margin-bottom:14px;} summary{cursor:pointer; font-weight:600; padding:6px 2px;}
+</style>
+</head>
+<body>
+
+<header>
+  <div><h1>Salary Tracker</h1><div class="sub" id="headerSub">Loading…</div></div>
+  <span class="pill" id="ratePill">—</span>
+</header>
+
+<!-- ============ TRACKER TAB ============ -->
+<div class="tab active" id="tab-track">
+  <div class="wrap">
+    <div class="card">
+      <h3 style="margin-bottom:6px;">Adjust a day</h3>
+      <div class="hint" style="margin-bottom:12px;">Your standard schedule is counted automatically. Only touch a day here if you worked <b>overtime</b>, different hours, or had a <b>day off</b>.</div>
+      <div class="field">
+        <label>Date</label>
+        <input type="date" id="in-date" />
+      </div>
+      <div class="statusline" id="statusLine">—</div>
+      <div class="row field">
+        <div><label>Start</label><input type="time" id="in-start" /></div>
+        <div><label>End</label><input type="time" id="in-end" /></div>
+        <div><label>Break (min)</label><input type="number" id="in-break" inputmode="numeric" value="0" min="0" /></div>
+      </div>
+      <div class="calc-out">
+        <div class="box"><div class="v" id="lp-worked">0h</div><div class="k">Worked</div></div>
+        <div class="box"><div class="v" style="color:var(--night)" id="lp-night">0h</div><div class="k">Night 18–06</div></div>
+        <div class="box"><div class="v" style="color:var(--ot)" id="lp-ot">0h</div><div class="k">Overtime</div></div>
+        <div class="box"><div class="v green" id="lp-pay">—</div><div class="k">Gross pay</div></div>
+      </div>
+      <div class="brk" id="lp-brk" style="display:none;"></div>
+      <div class="field" style="margin-top:12px;">
+        <label>Note (optional)</label>
+        <input type="text" id="in-note" placeholder="e.g. covered a shift" />
+      </div>
+      <button id="btn-save">Save adjusted hours</button>
+      <div class="row" style="margin-top:10px;">
+        <button class="ghost" id="btn-off">Mark day off</button>
+        <button class="ghost" id="btn-reset" style="display:none;">Use standard</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ============ SUMMARY TAB ============ -->
+<div class="tab" id="tab-summary">
+  <div class="wrap">
+    <div class="month-nav">
+      <button id="prevM">‹</button>
+      <div class="m" id="monthLabel">—</div>
+      <button id="nextM">›</button>
+    </div>
+
+    <div class="card" style="text-align:center;">
+      <div class="muted" style="font-size:12px; text-transform:uppercase; letter-spacing:.5px;">Projected gross this period</div>
+      <div class="big green" id="sumTotal">—</div>
+      <div class="muted" style="font-size:13px; margin-top:2px;">est. net after tax: <b id="sumNet" style="color:var(--txt)">—</b></div>
+    </div>
+
+    <div class="card">
+      <h3 style="margin-bottom:12px;">Pay breakdown</h3>
+      <div class="brk" id="sumBrk" style="border-top:none; padding-top:0; margin-top:0;"></div>
+    </div>
+
+    <div class="card">
+      <div class="split" style="margin-bottom:10px;"><h3>Hours</h3></div>
+      <div class="split">
+        <div class="stat"><div class="n" id="sumWorked">0</div><div class="l">Worked</div></div>
+        <div class="stat"><div class="n" style="color:var(--night)" id="sumNightH">0</div><div class="l">Night</div></div>
+        <div class="stat"><div class="n" style="color:var(--ot)" id="sumOt">0</div><div class="l">Overtime</div></div>
+        <div class="stat"><div class="n" id="sumDays">0</div><div class="l">Days</div></div>
+      </div>
+    </div>
+
+    <h3 style="margin:18px 4px 12px;">Days</h3>
+    <div id="entryList"></div>
+  </div>
+</div>
+
+<!-- ============ SETTINGS TAB ============ -->
+<div class="tab" id="tab-settings">
+  <div class="wrap">
+    <div class="card">
+      <h3 style="margin-bottom:14px;">Base pay</h3>
+      <div class="row field">
+        <div><label>Base hourly (Timeløn)</label><input type="number" id="set-rate" inputmode="decimal" step="0.01" /></div>
+        <div><label>Currency</label><input type="text" id="set-cur" maxlength="4" /></div>
+      </div>
+    </div>
+
+    <div class="card">
+      <h3 style="margin-bottom:6px;">Standard schedule</h3>
+      <div class="hint" style="margin-bottom:12px;">Your normal shift per day. These hours are counted automatically every period. Leave both times blank for a day off.</div>
+      <div id="schedRows"></div>
+      <div class="field" style="margin-top:12px;">
+        <label>Unpaid break per shift (min)</label>
+        <input type="number" id="set-break" inputmode="numeric" min="0" step="5" />
+        <div class="hint">Deducted from every shift's paid hours. Your shift's clock length minus this is what's paid.</div>
+      </div>
+    </div>
+
+    <div class="card">
+      <h3 style="margin-bottom:6px;">Tillæg — per hour, always</h3>
+      <div class="hint" style="margin-bottom:12px;">Added to every worked hour on top of base (e.g. anciennitet, køle, lager).</div>
+      <div id="tilRows"></div>
+      <button class="mini" id="btn-add-til" style="margin-top:4px;">+ Add tillæg</button>
+    </div>
+
+    <div class="card">
+      <h3 style="margin-bottom:6px;">Holddriftstillæg — night window</h3>
+      <div class="hint" style="margin-bottom:12px;">Extra per hour for time worked inside the window (e.g. 18:00–06:00). Your 05:00–06:00 hour counts automatically.</div>
+      <div class="row">
+        <div><label>Rate / hour</label><input type="number" id="set-night-rate" inputmode="decimal" step="0.01" /></div>
+        <div><label>From</label><input type="time" id="set-night-start" /></div>
+        <div><label>To</label><input type="time" id="set-night-end" /></div>
+      </div>
+    </div>
+
+    <div class="card">
+      <h3 style="margin-bottom:6px;">Overtime</h3>
+      <div class="hint" style="margin-bottom:12px;">Hours beyond the day's standard hours. Paid as a supplement on top of base, tiered like a Danish overenskomst.</div>
+      <div class="row field">
+        <div><label>First … hours at</label><input type="number" id="set-ot1h" inputmode="decimal" step="0.25" /></div>
+        <div><label>Tier 1 %</label><input type="number" id="set-ot1p" inputmode="numeric" /></div>
+        <div><label>Then %</label><input type="number" id="set-ot2p" inputmode="numeric" /></div>
+      </div>
+    </div>
+
+    <details>
+      <summary>Tax estimate (rough)</summary>
+      <div class="card" style="margin-top:10px;">
+        <div class="hint" style="margin-bottom:12px;">Very approximate. net ≈ gross − AM-bidrag − A-skat, where A-skat applies to (gross − AM − period deduction). Pension etc. not included.</div>
+        <div class="row field">
+          <div><label>AM-bidrag %</label><input type="number" id="set-am" inputmode="decimal" step="0.1" /></div>
+          <div><label>Trækprocent %</label><input type="number" id="set-tax" inputmode="decimal" step="0.1" /></div>
+        </div>
+        <div class="field"><label>Monthly fradrag</label><input type="number" id="set-fradrag" inputmode="decimal" step="1" /></div>
+      </div>
+    </details>
+
+    <div class="card">
+      <button class="ghost" id="btn-export">Export data (backup)</button>
+      <div style="height:10px;"></div>
+      <button class="ghost" id="btn-import">Import data</button>
+      <input type="file" id="file-import" accept="application/json" style="display:none;" />
+      <div style="height:10px;"></div>
+      <button class="danger" id="btn-clear">Clear all data</button>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<nav class="nav">
+  <button data-tab="track" class="active"><span class="ic">＋</span>Adjust</button>
+  <button data-tab="summary"><span class="ic">▦</span>Summary</button>
+  <button data-tab="settings"><span class="ic">⚙</span>Settings</button>
+</nav>
+
+<script>
+const DAYS = ["Sun","Mon","Tue","Wed","Thu","Fri","Sat"];
+const LS_SET = "salary.settings.v3";
+const LS_ENT = "salary.entries.v2";
+
+const defaultSettings = {
+  rate: 158.45,            // Timeløn
+  currency: "kr",
+  breakMin: 45,            // standard unpaid break per shift (minutes)
+  tillaeg: [               // per-hour supplements, applied to every worked hour
+    {name:"Anciennitet", rate:8.15},
+    {name:"Køletillæg",  rate:8.55},
+    {name:"Lagertillæg", rate:9.65}
+  ],
+  night: { rate:49.10, start:"18:00", end:"06:00" },  // Holddriftstillæg
+  ot: { tier1Hours:3, tier1Pct:50, tier2Pct:100 },
+  tax: { am:8, pct:39, fradrag:7954 },
+  // standard shift per weekday, 0=Sun … 6=Sat. null = day off.
+  shifts: [
+    null,                          // Sun
+    {start:"05:00", end:"13:00"},  // Mon
+    {start:"05:00", end:"13:00"},  // Tue
+    {start:"05:00", end:"13:00"},  // Wed
+    {start:"05:00", end:"13:45"},  // Thu
+    {start:"05:00", end:"13:00"},  // Fri
+    null                           // Sat
+  ]
+};
+
+let settings = loadSettings();
+// entries hold ONLY exceptions: { "YYYY-MM-DD": {start,end,brk,note} }  or  {off:true,note}
+let entries = load(LS_ENT, {});
+let viewAnchor = new Date();
+
+/* ---------- pay period: 16th → 15th ---------- */
+function periodRange(d){
+  let sy=d.getFullYear(), sm=d.getMonth();
+  if(d.getDate()<16){ const p=new Date(sy, sm-1, 1); sy=p.getFullYear(); sm=p.getMonth(); }
+  return { start:new Date(sy, sm, 16), end:new Date(sy, sm+1, 15) };
+}
+function periodLabel(r){
+  const mo=dt=>dt.toLocaleString("en-GB",{month:"short"});
+  return `${r.start.getDate()} ${mo(r.start)} – ${r.end.getDate()} ${mo(r.end)} ${r.end.getFullYear()}`;
+}
+
+/* ---------- storage ---------- */
+function load(k, fb){ try{ return Object.assign({}, fb, JSON.parse(localStorage.getItem(k))||{}); }catch(e){ return JSON.parse(JSON.stringify(fb)); } }
+function loadSettings(){
+  const s = JSON.parse(JSON.stringify(defaultSettings));
+  try{ const saved=JSON.parse(localStorage.getItem(LS_SET)); if(saved) Object.assign(s, saved); }catch(e){}
+  s.tillaeg = s.tillaeg || defaultSettings.tillaeg;
+  s.night = Object.assign({}, defaultSettings.night, s.night||{});
+  s.ot = Object.assign({}, defaultSettings.ot, s.ot||{});
+  s.tax = Object.assign({}, defaultSettings.tax, s.tax||{});
+  s.shifts = (Array.isArray(s.shifts) && s.shifts.length===7) ? s.shifts : defaultSettings.shifts;
+  if(s.breakMin==null) s.breakMin = defaultSettings.breakMin;
+  return s;
+}
+function save(){ localStorage.setItem(LS_SET, JSON.stringify(settings)); localStorage.setItem(LS_ENT, JSON.stringify(entries)); }
+
+/* ---------- helpers ---------- */
+function fmtMoney(n){
+  const v = (Math.round(n*100)/100).toLocaleString("da-DK",{minimumFractionDigits:2, maximumFractionDigits:2});
+  return v + " " + settings.currency;
+}
+function fmtH(h){ return (Math.round(h*100)/100).toFixed(2).replace(/\.00$/,"") + "h"; }
+function toMin(t){ if(!t) return null; const [h,m]=t.split(":").map(Number); return h*60+m; }
+function workedHours(start,end,brk){
+  const s=toMin(start), e=toMin(end);
+  if(s==null||e==null) return 0;
+  let mins = e - s; if(mins<0) mins += 1440;   // overnight shift
+  mins -= (Number(brk)||0);
+  return Math.max(0, mins/60);
+}
+function ymd(d){ return d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0")+"-"+String(d.getDate()).padStart(2,"0"); }
+function dow(dateStr){ return new Date(dateStr+"T00:00:00").getDay(); }
+function standingTillaeg(){ return (settings.tillaeg||[]).reduce((a,t)=>a+(Number(t.rate)||0),0); }
+function standardShift(dateStr){ return settings.shifts[dow(dateStr)] || null; }
+function scheduledHours(dateStr){ const sh=standardShift(dateStr); return sh?workedHours(sh.start,sh.end,settings.breakMin):0; }
+
+/* resolve what was actually worked on a date: standard unless an exception overrides it */
+function resolveDay(dateStr){
+  const e = entries[dateStr];
+  if(e){
+    if(e.off) return {worked:false, off:true, note:e.note||"", source:"off"};
+    return {worked:true, start:e.start, end:e.end, brk:e.brk||0, note:e.note||"", source:"logged"};
+  }
+  const sh = standardShift(dateStr);
+  if(sh) return {worked:true, start:sh.start, end:sh.end, brk:settings.breakMin, note:"", source:"standard"};
+  return {worked:false, off:false, source:"none"};
+}
+
+/* night hours of a shift inside the window (wraps past midnight) */
+function nightHours(start,end){
+  const s=toMin(start), e0=toMin(end);
+  if(s==null||e0==null) return 0;
+  let e=e0; if(e<=s) e+=1440;
+  const ns=toMin(settings.night.start), ne=toMin(settings.night.end);
+  let wins=[];
+  for(let day=0; day<=1; day++){
+    const off=day*1440;
+    if(ne>ns){ wins.push([ns+off, ne+off]); }
+    else { wins.push([ns+off, 1440+off]); wins.push([off, ne+off]); }
+  }
+  let ov=0;
+  for(const [a,b] of wins){ ov += Math.max(0, Math.min(e,b)-Math.max(s,a)); }
+  return ov/60;
+}
+
+/* pay for one worked day */
+function calcDay(dateStr, sh){
+  const worked = workedHours(sh.start, sh.end, sh.brk);
+  const sched  = scheduledHours(dateStr);
+  const reg = Math.min(worked, sched);
+  const ot  = Math.max(0, worked - sched);
+  const night = Math.min(worked, nightHours(sh.start, sh.end));
+
+  const base    = worked * settings.rate;
+  const tillaeg = worked * standingTillaeg();
+  const nightPay= night * (Number(settings.night.rate)||0);
+  const ot1 = Math.min(ot, Number(settings.ot.tier1Hours)||0);
+  const ot2 = Math.max(0, ot - ot1);
+  const otPay = ot1*settings.rate*(Number(settings.ot.tier1Pct)||0)/100
+              + ot2*settings.rate*(Number(settings.ot.tier2Pct)||0)/100;
+  const gross = base + tillaeg + nightPay + otPay;
+  return {worked, reg, ot, night, sched, base, tillaeg, nightPay, otPay, gross};
+}
+
+function estNet(gross){
+  const am = gross * (Number(settings.tax.am)||0)/100;
+  const taxBase = Math.max(0, gross - am - (Number(settings.tax.fradrag)||0));
+  const tax = taxBase * (Number(settings.tax.pct)||0)/100;
+  return gross - am - tax;
+}
+
+/* ---------- tracker (exceptions) ---------- */
+function refreshFormState(){
+  const d=document.getElementById("in-date").value || todayStr();
+  const e=entries[d];
+  const resetBtn=document.getElementById("btn-reset");
+  if(e){
+    resetBtn.style.display="block";
+    if(e.off){ document.getElementById("in-start").value=""; document.getElementById("in-end").value=""; document.getElementById("in-break").value=0; }
+    else { document.getElementById("in-start").value=e.start||""; document.getElementById("in-end").value=e.end||""; document.getElementById("in-break").value=e.brk||0; }
+    document.getElementById("in-note").value=e.note||"";
+  } else {
+    resetBtn.style.display="none";
+    const sh=standardShift(d);
+    document.getElementById("in-start").value=sh?sh.start:"";
+    document.getElementById("in-end").value=sh?sh.end:"";
+    document.getElementById("in-break").value=sh?settings.breakMin:0;
+    document.getElementById("in-note").value="";
+  }
+  const sh=standardShift(d);
+  const std = sh ? `${sh.start}–${sh.end} (${fmtH(scheduledHours(d))})` : "day off";
+  let status = !e ? "using <b>standard</b>" : (e.off ? "marked <b>DAY OFF</b>" : "<b>adjusted</b> hours");
+  document.getElementById("statusLine").innerHTML = `${DAYS[dow(d)]} standard: ${std} · this date: ${status}`;
+  renderLivePreview();
+}
+
+function renderLivePreview(){
+  const sh = {
+    start: document.getElementById("in-start").value,
+    end:   document.getElementById("in-end").value,
+    brk:   document.getElementById("in-break").value
+  };
+  const date = document.getElementById("in-date").value || todayStr();
+  const c = calcDay(date, sh);
+  document.getElementById("lp-worked").textContent = fmtH(c.worked);
+  document.getElementById("lp-night").textContent  = fmtH(c.night);
+  document.getElementById("lp-ot").textContent     = fmtH(c.ot);
+  document.getElementById("lp-pay").textContent    = c.worked ? fmtMoney(c.gross) : "—";
+
+  const brk = document.getElementById("lp-brk");
+  if(c.worked>0){
+    brk.style.display="block";
+    brk.innerHTML =
+      li("Base "+fmtH(c.worked)+" × "+settings.rate, c.base) +
+      li("Tillæg "+fmtH(c.worked)+" × "+(Math.round(standingTillaeg()*100)/100), c.tillaeg) +
+      (c.nightPay>0?li("Holddrift "+fmtH(c.night)+" × "+settings.night.rate, c.nightPay):"") +
+      (c.otPay>0?li("Overtime "+fmtH(c.ot), c.otPay):"") +
+      li("Gross", c.gross, true);
+  } else { brk.style.display="none"; }
+}
+function li(k,v,total){ return `<div class="li${total?' total':''}"><span>${k}</span><b>${fmtMoney(v)}</b></div>`; }
+
+/* ---------- summary ---------- */
+function eachDate(start,end){ const out=[]; const d=new Date(start); while(d<=end){ out.push(ymd(d)); d.setDate(d.getDate()+1);} return out; }
+
+function renderHeader(){
+  const eff = settings.rate + standingTillaeg();
+  document.getElementById("ratePill").textContent = fmtMoney(eff)+"/t";
+  const n = Object.keys(entries).length;
+  document.getElementById("headerSub").textContent = "Standard schedule on · " + (n? n+" exception"+(n>1?"s":"") : "no exceptions");
+}
+
+function renderSummary(){
+  const r=periodRange(viewAnchor);
+  document.getElementById("monthLabel").textContent = periodLabel(r);
+  const dates = eachDate(r.start, r.end);
+  let t={worked:0,night:0,ot:0,base:0,tillaeg:0,nightPay:0,otPay:0,gross:0,days:0};
+  const list = document.getElementById("entryList");
+  list.innerHTML="";
+  const rowsHtml=[];
+
+  dates.slice().reverse().forEach(d=>{
+    const rd=resolveDay(d);
+    const dt=new Date(d+"T00:00:00");
+    const dateLbl=`${DAYS[dt.getDay()]} ${dt.getDate()}/${dt.getMonth()+1}`;
+    if(rd.off){
+      rowsHtml.push(`<div class="entry off"><div><div class="d">${dateLbl}</div><div class="meta">Day off${rd.note?` · ${escapeHtml(rd.note)}`:""}</div></div><div class="amt">0,00 ${settings.currency}<span class="tag adj">day off</span></div></div>`);
+      return;
+    }
+    if(!rd.worked) return; // weekend / non-working, no exception
+    const c=calcDay(d, rd);
+    if(c.worked<=0) return;
+    t.worked+=c.worked; t.night+=c.night; t.ot+=c.ot;
+    t.base+=c.base; t.tillaeg+=c.tillaeg; t.nightPay+=c.nightPay; t.otPay+=c.otPay; t.gross+=c.gross; t.days++;
+    rowsHtml.push(`<div class="entry"><div><div class="d">${dateLbl}</div>
+      <div class="meta">${rd.start}–${rd.end}${Number(rd.brk)?` · ${rd.brk}m`:""} · ${fmtH(c.worked)}${rd.note?` · ${escapeHtml(rd.note)}`:""}</div></div>
+      <div class="amt">${fmtMoney(c.gross)}
+        ${rd.source==="logged"?`<span class="tag adj">adjusted</span>`:""}
+        ${c.ot>0?`<span class="tag ot">+${fmtH(c.ot)} OT</span>`:""}
+        ${c.night>0?`<span class="tag night">${fmtH(c.night)} night</span>`:""}
+      </div></div>`);
+  });
+
+  document.getElementById("sumTotal").textContent = fmtMoney(t.gross);
+  document.getElementById("sumNet").textContent   = fmtMoney(estNet(t.gross));
+  document.getElementById("sumBrk").innerHTML =
+    li("Base pay", t.base) + li("Tillæg (per hour)", t.tillaeg) +
+    li("Holddrift (night)", t.nightPay) + li("Overtime", t.otPay) +
+    li("Gross total", t.gross, true);
+  document.getElementById("sumWorked").textContent = fmtH(t.worked);
+  document.getElementById("sumNightH").textContent = fmtH(t.night);
+  document.getElementById("sumOt").textContent = fmtH(t.ot);
+  document.getElementById("sumDays").textContent = t.days;
+
+  list.innerHTML = rowsHtml.length ? rowsHtml.join("") : '<div class="empty">No working days in this period.</div>';
+  list.querySelectorAll(".entry").forEach((el,i)=>{ /* click handled below via date */ });
+}
+
+/* ---------- settings render ---------- */
+function renderSchedule(){
+  const box=document.getElementById("schedRows"); box.innerHTML="";
+  for(let i=1;i<=7;i++){
+    const idx=i%7;
+    const sh=settings.shifts[idx]||{};
+    const r=document.createElement("div"); r.className="sched-day";
+    r.innerHTML=`<div class="nm">${DAYS[idx]}</div>
+      <input type="time" data-day="${idx}" data-f="start" value="${sh.start||""}" />
+      <span class="dash">–</span>
+      <input type="time" data-day="${idx}" data-f="end" value="${sh.end||""}" />`;
+    box.appendChild(r);
+  }
+  box.querySelectorAll("input").forEach(inp=>inp.addEventListener("change",()=>{
+    const idx=+inp.dataset.day;
+    const row=inp.closest(".sched-day");
+    const start=row.querySelector('[data-f="start"]').value;
+    const end=row.querySelector('[data-f="end"]').value;
+    settings.shifts[idx] = (start&&end) ? {start,end} : null;
+    save(); renderAll(); refreshFormState();
+  }));
+}
+
+function renderTillaeg(){
+  const box=document.getElementById("tilRows"); box.innerHTML="";
+  (settings.tillaeg||[]).forEach((t,i)=>{
+    const r=document.createElement("div"); r.className="til-row";
+    r.innerHTML=`<input class="nm" type="text" value="${escapeAttr(t.name)}" data-i="${i}" data-f="name" />
+      <input class="rt" type="number" inputmode="decimal" step="0.01" value="${t.rate}" data-i="${i}" data-f="rate" />
+      <div class="x" data-del="${i}">×</div>`;
+    box.appendChild(r);
+  });
+  box.querySelectorAll("input").forEach(inp=>inp.addEventListener("change",()=>{
+    const i=+inp.dataset.i, f=inp.dataset.f;
+    settings.tillaeg[i][f] = f==="rate" ? (Number(inp.value)||0) : inp.value;
+    save(); renderHeader(); refreshFormState();
+  }));
+  box.querySelectorAll(".x").forEach(x=>x.addEventListener("click",()=>{
+    settings.tillaeg.splice(+x.dataset.del,1); save(); renderTillaeg(); renderHeader(); refreshFormState();
+  }));
+}
+
+function renderSettings(){
+  document.getElementById("set-rate").value = settings.rate;
+  document.getElementById("set-cur").value = settings.currency;
+  document.getElementById("set-break").value = settings.breakMin;
+  document.getElementById("set-night-rate").value = settings.night.rate;
+  document.getElementById("set-night-start").value = settings.night.start;
+  document.getElementById("set-night-end").value = settings.night.end;
+  document.getElementById("set-ot1h").value = settings.ot.tier1Hours;
+  document.getElementById("set-ot1p").value = settings.ot.tier1Pct;
+  document.getElementById("set-ot2p").value = settings.ot.tier2Pct;
+  document.getElementById("set-am").value = settings.tax.am;
+  document.getElementById("set-tax").value = settings.tax.pct;
+  document.getElementById("set-fradrag").value = settings.tax.fradrag;
+  renderSchedule();
+  renderTillaeg();
+}
+
+function renderAll(){ renderHeader(); renderSummary(); }
+
+/* ---------- utils ---------- */
+function todayStr(){ const d=new Date(); return ymd(d); }
+function escapeHtml(s){ return String(s).replace(/[&<>"]/g, c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c])); }
+function escapeAttr(s){ return escapeHtml(s).replace(/"/g,"&quot;"); }
+let toastT;
+function toast(msg){ const t=document.getElementById("toast"); t.textContent=msg; t.classList.add("show"); clearTimeout(toastT); toastT=setTimeout(()=>t.classList.remove("show"),1800); }
+
+function switchTab(name){
+  document.querySelectorAll(".tab").forEach(t=>t.classList.remove("active"));
+  document.getElementById("tab-"+name).classList.add("active");
+  document.querySelectorAll(".nav button").forEach(b=>b.classList.toggle("active", b.dataset.tab===name));
+  if(name==="summary") renderSummary();
+  if(name==="settings") renderSettings();
+  if(name==="track") refreshFormState();
+  window.scrollTo(0,0);
+}
+
+/* ---------- wire up ---------- */
+document.querySelectorAll(".nav button").forEach(b=>b.addEventListener("click", ()=>switchTab(b.dataset.tab)));
+document.getElementById("in-date").addEventListener("input", refreshFormState);
+["in-start","in-end","in-break"].forEach(id=>document.getElementById(id).addEventListener("input", renderLivePreview));
+
+document.getElementById("btn-save").addEventListener("click", ()=>{
+  const date=document.getElementById("in-date").value;
+  if(!date){ toast("Pick a date"); return; }
+  const start=document.getElementById("in-start").value, end=document.getElementById("in-end").value;
+  if(!start||!end){ toast("Enter start & end"); return; }
+  entries[date]={ start, end, brk:Number(document.getElementById("in-break").value)||0, note:document.getElementById("in-note").value.trim() };
+  save(); renderAll(); refreshFormState(); toast("Saved "+date);
+});
+
+document.getElementById("btn-off").addEventListener("click", ()=>{
+  const date=document.getElementById("in-date").value;
+  if(!date){ toast("Pick a date"); return; }
+  entries[date]={ off:true, note:document.getElementById("in-note").value.trim() };
+  save(); renderAll(); refreshFormState(); toast(date+" marked day off");
+});
+
+document.getElementById("btn-reset").addEventListener("click", ()=>{
+  const date=document.getElementById("in-date").value;
+  delete entries[date]; save(); renderAll(); refreshFormState(); toast("Reverted to standard");
+});
+
+document.getElementById("prevM").addEventListener("click", ()=>{ const s=periodRange(viewAnchor).start; viewAnchor=new Date(s.getFullYear(), s.getMonth()-1, 16); renderSummary(); });
+document.getElementById("nextM").addEventListener("click", ()=>{ const s=periodRange(viewAnchor).start; viewAnchor=new Date(s.getFullYear(), s.getMonth()+1, 16); renderSummary(); });
+
+function bindSet(id, fn){ document.getElementById(id).addEventListener("change", e=>{ fn(e.target.value); save(); renderAll(); refreshFormState(); }); }
+bindSet("set-rate", v=>settings.rate=Number(v)||0);
+bindSet("set-cur",  v=>settings.currency=v.trim()||"kr");
+bindSet("set-break",v=>settings.breakMin=Number(v)||0);
+bindSet("set-night-rate", v=>settings.night.rate=Number(v)||0);
+bindSet("set-night-start",v=>settings.night.start=v);
+bindSet("set-night-end",  v=>settings.night.end=v);
+bindSet("set-ot1h", v=>settings.ot.tier1Hours=Number(v)||0);
+bindSet("set-ot1p", v=>settings.ot.tier1Pct=Number(v)||0);
+bindSet("set-ot2p", v=>settings.ot.tier2Pct=Number(v)||0);
+bindSet("set-am",   v=>settings.tax.am=Number(v)||0);
+bindSet("set-tax",  v=>settings.tax.pct=Number(v)||0);
+bindSet("set-fradrag", v=>settings.tax.fradrag=Number(v)||0);
+
+document.getElementById("btn-add-til").addEventListener("click", ()=>{
+  settings.tillaeg.push({name:"Nyt tillæg", rate:0}); save(); renderTillaeg();
+});
+
+document.getElementById("btn-export").addEventListener("click", ()=>{
+  const blob=new Blob([JSON.stringify({settings,entries},null,2)],{type:"application/json"});
+  const a=document.createElement("a"); a.href=URL.createObjectURL(blob);
+  a.download="salary-backup-"+todayStr()+".json"; a.click();
+});
+document.getElementById("btn-import").addEventListener("click", ()=>document.getElementById("file-import").click());
+document.getElementById("file-import").addEventListener("change", e=>{
+  const f=e.target.files[0]; if(!f) return;
+  const r=new FileReader();
+  r.onload=()=>{ try{ const d=JSON.parse(r.result);
+    if(d.settings){ settings=normSettings(Object.assign(JSON.parse(JSON.stringify(defaultSettings)),d.settings)); }
+    if(d.entries) entries=d.entries;
+    save(); renderAll(); renderSettings(); refreshFormState(); toast("Imported");
+  }catch(err){ toast("Bad file"); } };
+  r.readAsText(f);
+});
+function normSettings(s){ s.night=Object.assign({},defaultSettings.night,s.night||{}); s.ot=Object.assign({},defaultSettings.ot,s.ot||{}); s.tax=Object.assign({},defaultSettings.tax,s.tax||{}); s.tillaeg=s.tillaeg||defaultSettings.tillaeg; s.shifts=(Array.isArray(s.shifts)&&s.shifts.length===7)?s.shifts:defaultSettings.shifts; if(s.breakMin==null)s.breakMin=defaultSettings.breakMin; return s; }
+
+document.getElementById("btn-clear").addEventListener("click", ()=>{
+  if(confirm("Delete ALL exceptions and reset settings? This can't be undone.")){
+    localStorage.removeItem(LS_SET); localStorage.removeItem(LS_ENT);
+    settings=loadSettings(); entries={}; renderAll(); renderSettings(); refreshFormState(); toast("Cleared");
+  }
+});
+
+/* ---------- init ---------- */
+document.getElementById("in-date").value=todayStr();
+renderHeader();
+refreshFormState();
+renderSummary();
+</script>
+</body>
+</html>
