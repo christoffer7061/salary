@@ -215,10 +215,15 @@
       <button class="ghost" id="btn-logout">Log out</button>
     </div>
 
+    <div class="card" id="setupHint" style="display:none; border-color:var(--accent); background:rgba(79,140,255,.08);">
+      <h3 style="margin-bottom:6px;">👋 Set up your pay</h3>
+      <div class="hint" style="margin-bottom:0;">Enter your <b>hourly rate</b> and <b>schedule</b> below (plus any supplements). It all saves to your account automatically and powers the Summary tab.</div>
+    </div>
+
     <div class="card">
       <h3 style="margin-bottom:14px;">Base pay</h3>
       <div class="row field">
-        <div><label>Base hourly (Timeløn)</label><input type="number" id="set-rate" inputmode="decimal" step="0.01" /></div>
+        <div><label>Base hourly rate</label><input type="number" id="set-rate" inputmode="decimal" step="0.01" /></div>
         <div><label>Currency</label><input type="text" id="set-cur" maxlength="4" /></div>
       </div>
     </div>
@@ -235,15 +240,15 @@
     </div>
 
     <div class="card">
-      <h3 style="margin-bottom:6px;">Tillæg — per hour, always</h3>
-      <div class="hint" style="margin-bottom:12px;">Added to every worked hour on top of base (e.g. anciennitet, køle, lager).</div>
+      <h3 style="margin-bottom:6px;">Per-hour supplements</h3>
+      <div class="hint" style="margin-bottom:12px;">Extra amounts paid on every hour worked, on top of base pay — e.g. seniority or role supplements (in DK: tillæg).</div>
       <div id="tilRows"></div>
-      <button class="mini" id="btn-add-til" style="margin-top:4px;">+ Add tillæg</button>
+      <button class="mini" id="btn-add-til" style="margin-top:4px;">+ Add supplement</button>
     </div>
 
     <div class="card">
-      <h3 style="margin-bottom:6px;">Holddriftstillæg — night window</h3>
-      <div class="hint" style="margin-bottom:12px;">Extra per hour for time worked inside the window (e.g. 18:00–06:00). Your 05:00–06:00 hour counts automatically.</div>
+      <h3 style="margin-bottom:6px;">Night / shift supplement</h3>
+      <div class="hint" style="margin-bottom:12px;">Extra per hour for time worked inside a set window (e.g. 18:00–06:00) — in DK: holddriftstillæg. Hours inside the window get it automatically.</div>
       <div class="row">
         <div><label>Rate / hour</label><input type="number" id="set-night-rate" inputmode="decimal" step="0.01" /></div>
         <div><label>From</label><input type="time" id="set-night-start" /></div>
@@ -253,7 +258,7 @@
 
     <div class="card">
       <h3 style="margin-bottom:6px;">Overtime</h3>
-      <div class="hint" style="margin-bottom:12px;">Hours beyond the day's standard hours. Paid as a supplement on top of base, tiered like a Danish overenskomst.</div>
+      <div class="hint" style="margin-bottom:12px;">Hours beyond the day's standard hours, paid as a supplement on top of base. Set the tiers to match your agreement.</div>
       <div class="row field">
         <div><label>First … hours at</label><input type="number" id="set-ot1h" inputmode="decimal" step="0.25" /></div>
         <div><label>Tier 1 %</label><input type="number" id="set-ot1p" inputmode="numeric" /></div>
@@ -323,6 +328,26 @@ const defaultSettings = {
   ]
 };
 
+// neutral starting profile for brand-new accounts (so others don't inherit Christoffer's numbers)
+const blankSettings = {
+  rate: 0,
+  currency: "kr",
+  breakMin: 30,
+  tillaeg: [],
+  night: { rate:0, start:"18:00", end:"06:00" },
+  ot: { tier1Hours:0, tier1Pct:50, tier2Pct:50 },
+  tax: { am:8, pct:38, fradrag:0 },
+  shifts: [
+    null,
+    {start:"08:00", end:"16:00"},
+    {start:"08:00", end:"16:00"},
+    {start:"08:00", end:"16:00"},
+    {start:"08:00", end:"16:00"},
+    {start:"08:00", end:"16:00"},
+    null
+  ]
+};
+
 let settings = loadSettings();
 // entries hold ONLY exceptions: { "YYYY-MM-DD": {start,end,brk,note} }  or  {off:true,note}
 let entries = load(LS_ENT, {});
@@ -337,6 +362,7 @@ const supa = window.supabase.createClient(SUPA_URL, SUPA_KEY, { auth:{ persistSe
 let currentUid = null;
 let authingFor = null;
 let syncTimer = null;
+let freshAccount = false;
 
 /* ---------- pay period: 16th → 15th ---------- */
 function periodRange(d){
@@ -382,6 +408,10 @@ function applyData(d){
   settings=normSettings(s);
   entries=d.entries||{}; feriepenge=d.feriepenge||{}; fritvalg=d.fritvalg||{};
 }
+function applyBlank(){
+  settings=JSON.parse(JSON.stringify(blankSettings));
+  entries={}; feriepenge={}; fritvalg={};
+}
 async function pushCloud(){
   if(!currentUid) return;
   const el=document.getElementById("acct-sync");
@@ -400,6 +430,7 @@ function readLegacy(){
 function clearLegacy(){ [LS_SET,LS_ENT,LS_FP,LS_FV].forEach(k=>localStorage.removeItem(k)); }
 
 async function loadUserData(){
+  freshAccount=false;
   let cloud=null, offline=false;
   try{
     const {data,error}=await supa.from("user_data").select("data").eq("user_id",currentUid).maybeSingle();
@@ -412,9 +443,11 @@ async function loadUserData(){
     return;
   }
   if(cloud){ applyData(cloud); try{ localStorage.setItem("salary.cache."+currentUid, JSON.stringify(appData())); }catch(_){ } return; }
-  // no cloud row yet — migrate this device's existing data on first login, else start from defaults
+  // no cloud row yet — migrate this device's existing data on first login (preserves Christoffer's),
+  // otherwise this is a brand-new account → start with a clean, neutral profile
   const legacy=readLegacy();
-  if(legacy) applyData(legacy);
+  if(legacy){ applyData(legacy); }
+  else { applyBlank(); freshAccount=true; }
   await pushCloud();
   if(legacy) clearLegacy();
 }
@@ -431,8 +464,13 @@ async function onAuthed(user){
   document.getElementById("acct-sync").textContent="✓ synced";
   showAuth(false);
   document.getElementById("in-date").value=todayStr();
-  switchTab("track");
-  renderHeader(); refreshFormState(); renderSummary();
+  renderHeader(); refreshFormState(); renderSummary(); renderSettings();
+  if(freshAccount){
+    switchTab("settings");
+    toast("Welcome! Set your hours & rates here — it saves automatically.");
+  } else {
+    switchTab("track");
+  }
 }
 
 /* ---------- helpers ---------- */
@@ -697,6 +735,8 @@ function renderTillaeg(){
 }
 
 function renderSettings(){
+  const hint=document.getElementById("setupHint");
+  if(hint) hint.style.display = (!Number(settings.rate)) ? "block" : "none";
   document.getElementById("set-rate").value = settings.rate;
   document.getElementById("set-cur").value = settings.currency;
   document.getElementById("set-break").value = settings.breakMin;
@@ -789,7 +829,7 @@ bindSet("set-tax",  v=>settings.tax.pct=Number(v)||0);
 bindSet("set-fradrag", v=>settings.tax.fradrag=Number(v)||0);
 
 document.getElementById("btn-add-til").addEventListener("click", ()=>{
-  settings.tillaeg.push({name:"Nyt tillæg", rate:0}); save(); renderTillaeg();
+  settings.tillaeg.push({name:"New supplement", rate:0}); save(); renderTillaeg();
 });
 
 document.getElementById("btn-export").addEventListener("click", ()=>{
