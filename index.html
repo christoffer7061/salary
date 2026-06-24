@@ -92,9 +92,29 @@
   .statusline{font-size:12px; padding:8px 10px; border-radius:10px; background:var(--card2); border:1px solid var(--line); margin-bottom:10px; color:var(--muted);}
   .statusline b{color:var(--txt);}
   details{margin-bottom:14px;} summary{cursor:pointer; font-weight:600; padding:6px 2px;}
+  /* ---- auth screen ---- */
+  .auth-screen{position:fixed; inset:0; z-index:200; background:var(--bg); display:flex; flex-direction:column; justify-content:center; padding:28px 22px; max-width:560px; margin:0 auto; overflow:auto;}
+  .auth-screen.hidden{display:none;}
+  .auth-screen h1{font-size:27px; letter-spacing:-.4px; margin-bottom:6px;}
+  .auth-screen .sub{color:var(--muted); font-size:14px; margin-bottom:26px; line-height:1.5;}
+  .auth-screen .err{color:var(--danger); font-size:13px; min-height:18px; margin:8px 2px 4px; line-height:1.4;}
+  .synced{font-size:11px; color:var(--accent2);}
 </style>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 </head>
 <body>
+
+<div class="auth-screen" id="authScreen">
+  <h1>Salary Tracker</h1>
+  <div class="sub">Log in to sync your hours, settings and pay across all your devices.</div>
+  <div class="field"><label>Email</label><input type="email" id="auth-email" autocomplete="username" placeholder="you@example.com" /></div>
+  <div class="field"><label>Password</label><input type="password" id="auth-pass" autocomplete="current-password" placeholder="at least 6 characters" /></div>
+  <div class="err" id="authErr"></div>
+  <button id="auth-login">Log in</button>
+  <div style="height:10px;"></div>
+  <button class="ghost" id="auth-signup">Create new account</button>
+</div>
+
 
 <header>
   <div><h1>Salary Tracker</h1><div class="sub" id="headerSub">Loading…</div></div>
@@ -189,6 +209,12 @@
 <!-- ============ SETTINGS TAB ============ -->
 <div class="tab" id="tab-settings">
   <div class="wrap">
+    <div class="card">
+      <h3 style="margin-bottom:6px;">Account</h3>
+      <div class="hint" style="margin-bottom:10px;">Signed in as <b id="acct-email">—</b>. <span id="acct-sync" class="synced"></span></div>
+      <button class="ghost" id="btn-logout">Log out</button>
+    </div>
+
     <div class="card">
       <h3 style="margin-bottom:14px;">Base pay</h3>
       <div class="row field">
@@ -304,6 +330,14 @@ let feriepenge = (function(){ try{ return JSON.parse(localStorage.getItem(LS_FP)
 let fritvalg   = (function(){ try{ return JSON.parse(localStorage.getItem(LS_FV))||{}; }catch(e){ return {}; } })();
 let viewAnchor = new Date();
 
+/* ---------- cloud (Supabase) ---------- */
+const SUPA_URL = "https://txpthhxgkemgezrpkmnx.supabase.co";
+const SUPA_KEY = "sb_publishable_TMxQ79pacqjSaEuCRu-KWw_ImuJsur-";
+const supa = window.supabase.createClient(SUPA_URL, SUPA_KEY, { auth:{ persistSession:true, autoRefreshToken:true } });
+let currentUid = null;
+let authingFor = null;
+let syncTimer = null;
+
 /* ---------- pay period: 16th → 15th ---------- */
 function periodRange(d){
   let sy=d.getFullYear(), sm=d.getMonth();
@@ -328,7 +362,78 @@ function loadSettings(){
   if(s.breakMin==null) s.breakMin = defaultSettings.breakMin;
   return s;
 }
-function save(){ localStorage.setItem(LS_SET, JSON.stringify(settings)); localStorage.setItem(LS_ENT, JSON.stringify(entries)); localStorage.setItem(LS_FP, JSON.stringify(feriepenge)); localStorage.setItem(LS_FV, JSON.stringify(fritvalg)); }
+function save(){
+  if(currentUid){
+    try{ localStorage.setItem("salary.cache."+currentUid, JSON.stringify(appData())); }catch(e){}
+    clearTimeout(syncTimer); syncTimer=setTimeout(pushCloud, 700);
+    const el=document.getElementById("acct-sync"); if(el) el.textContent="saving…";
+  } else {
+    localStorage.setItem(LS_SET, JSON.stringify(settings)); localStorage.setItem(LS_ENT, JSON.stringify(entries));
+    localStorage.setItem(LS_FP, JSON.stringify(feriepenge)); localStorage.setItem(LS_FV, JSON.stringify(fritvalg));
+  }
+}
+
+/* ---------- cloud sync ---------- */
+function appData(){ return {settings, entries, feriepenge, fritvalg}; }
+function applyData(d){
+  d=d||{};
+  const s=JSON.parse(JSON.stringify(defaultSettings));
+  if(d.settings) Object.assign(s, d.settings);
+  settings=normSettings(s);
+  entries=d.entries||{}; feriepenge=d.feriepenge||{}; fritvalg=d.fritvalg||{};
+}
+async function pushCloud(){
+  if(!currentUid) return;
+  const el=document.getElementById("acct-sync");
+  try{
+    const {error}=await supa.from("user_data").upsert({user_id:currentUid, data:appData(), updated_at:new Date().toISOString()});
+    if(el) el.textContent = error ? "sync error — saved on this device" : "✓ synced";
+  }catch(e){ if(el) el.textContent="offline — saved on this device"; }
+}
+function readLegacy(){
+  try{
+    const s=localStorage.getItem(LS_SET), e=localStorage.getItem(LS_ENT), f=localStorage.getItem(LS_FP), v=localStorage.getItem(LS_FV);
+    if(!s&&!e&&!f&&!v) return null;
+    return { settings:s?JSON.parse(s):undefined, entries:e?JSON.parse(e):{}, feriepenge:f?JSON.parse(f):{}, fritvalg:v?JSON.parse(v):{} };
+  }catch(_){ return null; }
+}
+function clearLegacy(){ [LS_SET,LS_ENT,LS_FP,LS_FV].forEach(k=>localStorage.removeItem(k)); }
+
+async function loadUserData(){
+  let cloud=null, offline=false;
+  try{
+    const {data,error}=await supa.from("user_data").select("data").eq("user_id",currentUid).maybeSingle();
+    if(error) throw error;
+    cloud = data ? data.data : null;
+  }catch(e){ offline=true; }
+  if(offline){
+    const cache=localStorage.getItem("salary.cache."+currentUid);
+    if(cache){ try{ applyData(JSON.parse(cache)); }catch(_){} }
+    return;
+  }
+  if(cloud){ applyData(cloud); try{ localStorage.setItem("salary.cache."+currentUid, JSON.stringify(appData())); }catch(_){ } return; }
+  // no cloud row yet — migrate this device's existing data on first login, else start from defaults
+  const legacy=readLegacy();
+  if(legacy) applyData(legacy);
+  await pushCloud();
+  if(legacy) clearLegacy();
+}
+
+function showAuth(show){ document.getElementById("authScreen").classList.toggle("hidden", !show); }
+function authError(m){ document.getElementById("authErr").textContent=m||""; }
+function aVal(id){ return document.getElementById(id).value.trim(); }
+
+async function onAuthed(user){
+  if(authingFor===user.id) return; authingFor=user.id;
+  currentUid=user.id;
+  await loadUserData();
+  const em=document.getElementById("acct-email"); if(em) em.textContent=user.email||"(account)";
+  document.getElementById("acct-sync").textContent="✓ synced";
+  showAuth(false);
+  document.getElementById("in-date").value=todayStr();
+  switchTab("track");
+  renderHeader(); refreshFormState(); renderSummary();
+}
 
 /* ---------- helpers ---------- */
 function fmtMoney(n){
@@ -714,11 +819,47 @@ document.getElementById("btn-clear").addEventListener("click", ()=>{
   }
 });
 
+/* ---------- auth wire-up ---------- */
+document.getElementById("auth-login").addEventListener("click", async ()=>{
+  authError(""); const email=aVal("auth-email"), pass=document.getElementById("auth-pass").value;
+  if(!email||!pass){ authError("Enter your email and password."); return; }
+  const btn=document.getElementById("auth-login"); btn.disabled=true; btn.textContent="Logging in…";
+  const {error}=await supa.auth.signInWithPassword({email, password:pass});
+  btn.disabled=false; btn.textContent="Log in";
+  if(error) authError(error.message);
+});
+document.getElementById("auth-signup").addEventListener("click", async ()=>{
+  authError(""); const email=aVal("auth-email"), pass=document.getElementById("auth-pass").value;
+  if(!email||!pass){ authError("Enter an email and password to sign up."); return; }
+  if(pass.length<6){ authError("Password must be at least 6 characters."); return; }
+  const btn=document.getElementById("auth-signup"); btn.disabled=true; btn.textContent="Creating…";
+  const {data,error}=await supa.auth.signUp({email, password:pass});
+  btn.disabled=false; btn.textContent="Create new account";
+  if(error){ authError(error.message); return; }
+  if(!data.session && data.user){ authError("Account created. Tap “Log in” to continue."); }
+});
+["auth-email","auth-pass"].forEach(id=>document.getElementById(id).addEventListener("keydown", e=>{ if(e.key==="Enter") document.getElementById("auth-login").click(); }));
+
+document.getElementById("btn-logout").addEventListener("click", async ()=>{ await supa.auth.signOut(); });
+
+supa.auth.onAuthStateChange((event, session)=>{
+  if(event==="SIGNED_IN" && session && session.user){ onAuthed(session.user); }
+  else if(event==="SIGNED_OUT"){
+    currentUid=null; authingFor=null; clearTimeout(syncTimer);
+    document.getElementById("auth-pass").value=""; authError("");
+    showAuth(true);
+  }
+});
+
 /* ---------- init ---------- */
 document.getElementById("in-date").value=todayStr();
-renderHeader();
-refreshFormState();
-renderSummary();
+(async ()=>{
+  try{
+    const {data}=await supa.auth.getSession();
+    if(data.session && data.session.user){ await onAuthed(data.session.user); }
+    else { showAuth(true); }
+  }catch(e){ authError("Could not reach the server. Check your connection and reload."); showAuth(true); }
+})();
 </script>
 </body>
 </html>
