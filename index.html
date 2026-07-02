@@ -6,6 +6,9 @@
 <meta name="apple-mobile-web-app-capable" content="yes" />
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
 <meta name="theme-color" content="#0f1115" />
+<link rel="manifest" href="manifest.webmanifest" />
+<link rel="apple-touch-icon" href="icon-180.png" />
+<link rel="icon" type="image/png" href="icon-180.png" />
 <title>Salary Tracker</title>
 <style>
   :root{
@@ -51,8 +54,11 @@
   .stat{flex:1; text-align:center;}
   .stat .n{font-size:19px; font-weight:700;}
   .stat .l{font-size:11px; color:var(--muted); text-transform:uppercase; letter-spacing:.4px;}
-  .entry{display:flex; align-items:center; justify-content:space-between; padding:13px 14px; border:1px solid var(--line); border-radius:12px; margin-bottom:9px; background:var(--card);}
+  .entry{display:flex; align-items:center; justify-content:space-between; padding:13px 14px; border:1px solid var(--line); border-radius:12px; margin-bottom:9px; background:var(--card); cursor:pointer;}
+  .entry:active{background:var(--card2);}
   .entry.off{opacity:.6;}
+  .entry.future{border-style:dashed; opacity:.75;}
+  .entry.today{border-color:var(--accent);}
   .entry .d{font-weight:600;}
   .entry .meta{font-size:12px; color:var(--muted); margin-top:3px;}
   .entry .amt{text-align:right; font-weight:700; white-space:nowrap;}
@@ -138,7 +144,7 @@
         <div><label>Break (min)</label><input type="number" id="in-break" inputmode="numeric" value="0" min="0" /></div>
       </div>
       <div class="calc-out">
-        <div class="box"><div class="v" id="lp-worked">0h</div><div class="k">Worked</div></div>
+        <div class="box"><div class="v" id="lp-worked">0h</div><div class="k" id="lp-worked-k">Worked</div></div>
         <div class="box"><div class="v" style="color:var(--night)" id="lp-night">0h</div><div class="k">Night 18–06</div></div>
         <div class="box"><div class="v" style="color:var(--ot)" id="lp-ot">0h</div><div class="k">Overtime</div></div>
         <div class="box"><div class="v green" id="lp-pay">—</div><div class="k">Gross pay</div></div>
@@ -201,7 +207,8 @@
       <div class="brk" id="fv-net" style="display:none;"></div>
     </div>
 
-    <h3 style="margin:18px 4px 12px;">Days</h3>
+    <h3 style="margin:18px 4px 2px;">Days</h3>
+    <div class="hint" style="margin:0 4px 12px;">Tap a day to adjust it.</div>
     <div id="entryList"></div>
   </div>
 </div>
@@ -358,7 +365,8 @@ let viewAnchor = new Date();
 /* ---------- cloud (Supabase) ---------- */
 const SUPA_URL = "https://txpthhxgkemgezrpkmnx.supabase.co";
 const SUPA_KEY = "sb_publishable_TMxQ79pacqjSaEuCRu-KWw_ImuJsur-";
-const supa = window.supabase.createClient(SUPA_URL, SUPA_KEY, { auth:{ persistSession:true, autoRefreshToken:true } });
+// guard: if the CDN script failed to load (offline), fall back to cached data instead of crashing
+const supa = window.supabase ? window.supabase.createClient(SUPA_URL, SUPA_KEY, { auth:{ persistSession:true, autoRefreshToken:true } }) : null;
 let currentUid = null;
 let authingFor = null;
 let syncTimer = null;
@@ -390,9 +398,12 @@ function loadSettings(){
 }
 function save(){
   if(currentUid){
-    try{ localStorage.setItem("salary.cache."+currentUid, JSON.stringify(appData())); }catch(e){}
+    try{
+      localStorage.setItem("salary.cache."+currentUid, JSON.stringify(appData()));
+      localStorage.setItem("salary.dirty."+currentUid, "1");   // cleared after a successful cloud push
+    }catch(e){}
     clearTimeout(syncTimer); syncTimer=setTimeout(pushCloud, 700);
-    const el=document.getElementById("acct-sync"); if(el) el.textContent="saving…";
+    const el=document.getElementById("acct-sync"); if(el) el.textContent = supa ? "saving…" : "offline — saved on this device";
   } else {
     localStorage.setItem(LS_SET, JSON.stringify(settings)); localStorage.setItem(LS_ENT, JSON.stringify(entries));
     localStorage.setItem(LS_FP, JSON.stringify(feriepenge)); localStorage.setItem(LS_FV, JSON.stringify(fritvalg));
@@ -413,10 +424,11 @@ function applyBlank(){
   entries={}; feriepenge={}; fritvalg={};
 }
 async function pushCloud(){
-  if(!currentUid) return;
+  if(!currentUid || !supa) return;
   const el=document.getElementById("acct-sync");
   try{
     const {error}=await supa.from("user_data").upsert({user_id:currentUid, data:appData(), updated_at:new Date().toISOString()});
+    if(!error) localStorage.removeItem("salary.dirty."+currentUid);
     if(el) el.textContent = error ? "sync error — saved on this device" : "✓ synced";
   }catch(e){ if(el) el.textContent="offline — saved on this device"; }
 }
@@ -431,15 +443,21 @@ function clearLegacy(){ [LS_SET,LS_ENT,LS_FP,LS_FV].forEach(k=>localStorage.remo
 
 async function loadUserData(){
   freshAccount=false;
+  // edits made offline haven't reached the cloud yet — they win over the (older) cloud row
+  const dirty = localStorage.getItem("salary.dirty."+currentUid)==="1";
+  const cacheRaw = localStorage.getItem("salary.cache."+currentUid);
+  if(dirty && cacheRaw){
+    try{ applyData(JSON.parse(cacheRaw)); await pushCloud(); return; }catch(_){}
+  }
   let cloud=null, offline=false;
   try{
+    if(!supa) throw new Error("offline");
     const {data,error}=await supa.from("user_data").select("data").eq("user_id",currentUid).maybeSingle();
     if(error) throw error;
     cloud = data ? data.data : null;
   }catch(e){ offline=true; }
   if(offline){
-    const cache=localStorage.getItem("salary.cache."+currentUid);
-    if(cache){ try{ applyData(JSON.parse(cache)); }catch(_){} }
+    if(cacheRaw){ try{ applyData(JSON.parse(cacheRaw)); }catch(_){} }
     return;
   }
   if(cloud){ applyData(cloud); try{ localStorage.setItem("salary.cache."+currentUid, JSON.stringify(appData())); }catch(_){ } return; }
@@ -459,6 +477,7 @@ function aVal(id){ return document.getElementById(id).value.trim(); }
 async function onAuthed(user){
   if(authingFor===user.id) return; authingFor=user.id;
   currentUid=user.id;
+  try{ localStorage.setItem("salary.lastUid", user.id); }catch(_){}
   await loadUserData();
   const em=document.getElementById("acct-email"); if(em) em.textContent=user.email||"(account)";
   document.getElementById("acct-sync").textContent="✓ synced";
@@ -606,6 +625,9 @@ function renderLivePreview(){
   };
   const date = document.getElementById("in-date").value || todayStr();
   const c = calcDay(date, sh);
+  // flag shifts that wrap past midnight — usually a typo'd end time
+  const s0=toMin(sh.start), e0=toMin(sh.end);
+  document.getElementById("lp-worked-k").textContent = (s0!=null && e0!=null && e0<s0) ? "Worked (overnight!)" : "Worked";
   document.getElementById("lp-worked").textContent = fmtH(c.worked);
   document.getElementById("lp-night").textContent  = fmtH(c.night);
   document.getElementById("lp-ot").textContent     = fmtH(c.ot);
@@ -616,7 +638,7 @@ function renderLivePreview(){
     brk.style.display="block";
     brk.innerHTML =
       li("Base "+fmtH(c.reg)+" × "+settings.rate, c.regBase) +
-      li("Tillæg "+fmtH(c.reg)+" × "+(Math.round(standingTillaeg()*100)/100), c.regTillaeg) +
+      (standingTillaeg()>0?li("Tillæg "+fmtH(c.reg)+" × "+(Math.round(standingTillaeg()*100)/100), c.regTillaeg):"") +
       (c.nightPay>0?li("Holddrift "+fmtH(c.night)+" × "+settings.night.rate, c.nightPay):"") +
       (c.ot>0?li("Overtime "+fmtH(c.ot)+" (incl. base+tillæg)", c.otFull):"") +
       li("Gross", c.gross, true);
@@ -628,8 +650,8 @@ function li(k,v,total){ return `<div class="li${total?' total':''}"><span>${k}</
 function eachDate(start,end){ const out=[]; const d=new Date(start); while(d<=end){ out.push(ymd(d)); d.setDate(d.getDate()+1);} return out; }
 
 function renderHeader(){
-  const eff = settings.rate + standingTillaeg();
-  document.getElementById("ratePill").textContent = fmtMoney(eff)+"/t";
+  const eff = (Number(settings.rate)||0) + standingTillaeg();
+  document.getElementById("ratePill").textContent = eff>0 ? fmtMoney(eff)+"/t" : "—";
   const n = Object.keys(entries).length;
   document.getElementById("headerSub").textContent = "Standard schedule on · " + (n? n+" exception"+(n>1?"s":"") : "no exceptions");
 }
@@ -643,12 +665,14 @@ function renderSummary(){
   list.innerHTML="";
   const rowsHtml=[];
 
+  const today=todayStr();
   dates.slice().reverse().forEach(d=>{
     const rd=resolveDay(d);
     const dt=new Date(d+"T00:00:00");
     const dateLbl=`${DAYS[dt.getDay()]} ${dt.getDate()}/${dt.getMonth()+1}`;
+    const cls="entry"+(d===today?" today":(d>today?" future":""));
     if(rd.off){
-      rowsHtml.push(`<div class="entry off"><div><div class="d">${dateLbl}</div><div class="meta">Day off${rd.note?` · ${escapeHtml(rd.note)}`:""}</div></div><div class="amt">0,00 ${settings.currency}<span class="tag adj">day off</span></div></div>`);
+      rowsHtml.push(`<div class="${cls} off" data-d="${d}"><div><div class="d">${dateLbl}</div><div class="meta">Day off${rd.note?` · ${escapeHtml(rd.note)}`:""}</div></div><div class="amt">${fmtMoney(0)}<span class="tag adj">day off</span></div></div>`);
       return;
     }
     if(!rd.worked) return; // weekend / non-working, no exception
@@ -657,7 +681,7 @@ function renderSummary(){
     t.worked+=c.worked; t.night+=c.night; t.ot+=c.ot;
     t.base+=c.base; t.tillaeg+=c.tillaeg; t.nightPay+=c.nightPay; t.otPay+=c.otPay; t.gross+=c.gross; t.days++;
     t.regBase+=c.regBase; t.regTillaeg+=c.regTillaeg; t.otFull+=c.otFull;
-    rowsHtml.push(`<div class="entry"><div><div class="d">${dateLbl}</div>
+    rowsHtml.push(`<div class="${cls}" data-d="${d}"><div><div class="d">${dateLbl}</div>
       <div class="meta">${rd.start}–${rd.end}${Number(rd.brk)?` · ${rd.brk}m`:""} · ${fmtH(c.worked)}${rd.note?` · ${escapeHtml(rd.note)}`:""}</div></div>
       <div class="amt">${fmtMoney(c.gross)}
         ${rd.source==="logged"?`<span class="tag adj">adjusted</span>`:""}
@@ -675,8 +699,10 @@ function renderSummary(){
   document.getElementById("sumTotal").textContent = fmtMoney(t.gross + extraGross);
   document.getElementById("sumNet").textContent   = fmtMoney(estNet(t.gross) + extraNet);
   document.getElementById("sumBrk").innerHTML =
-    li("Base pay (regular)", t.regBase) + li("Tillæg (regular)", t.regTillaeg) +
-    li("Holddrift (night)", t.nightPay) + li("Overtime — incl. base + tillæg", t.otFull) +
+    li("Base pay (regular)", t.regBase) +
+    (t.regTillaeg>0?li("Tillæg (regular)", t.regTillaeg):"") +
+    (t.nightPay>0?li("Holddrift (night)", t.nightPay):"") +
+    (t.otFull>0?li("Overtime — incl. base + tillæg", t.otFull):"") +
     (fpGross>0?li("Feriepenge (gross)", fpGross):"") +
     (fvGross>0?li("Fritvalgskonto (gross)", fvGross):"") +
     li("Gross total", t.gross + extraGross, true);
@@ -689,7 +715,11 @@ function renderSummary(){
   document.getElementById("sumDays").textContent = t.days;
 
   list.innerHTML = rowsHtml.length ? rowsHtml.join("") : '<div class="empty">No working days in this period.</div>';
-  list.querySelectorAll(".entry").forEach((el,i)=>{ /* click handled below via date */ });
+  // tap a day to open it in the Adjust tab
+  list.querySelectorAll(".entry[data-d]").forEach(el=>el.addEventListener("click", ()=>{
+    document.getElementById("in-date").value=el.dataset.d;
+    switchTab("track");
+  }));
 }
 
 /* ---------- settings render ---------- */
@@ -853,15 +883,21 @@ document.getElementById("file-import").addEventListener("change", e=>{
 function normSettings(s){ s.night=Object.assign({},defaultSettings.night,s.night||{}); s.ot=Object.assign({},defaultSettings.ot,s.ot||{}); s.tax=Object.assign({},defaultSettings.tax,s.tax||{}); s.tillaeg=s.tillaeg||defaultSettings.tillaeg; s.shifts=(Array.isArray(s.shifts)&&s.shifts.length===7)?s.shifts:defaultSettings.shifts; if(s.breakMin==null)s.breakMin=defaultSettings.breakMin; return s; }
 
 document.getElementById("btn-clear").addEventListener("click", ()=>{
-  if(confirm("Delete ALL exceptions and reset settings? This can't be undone.")){
+  if(!confirm("Delete ALL hours, add-ons and settings in this account? This can't be undone.")) return;
+  if(currentUid){
+    applyBlank(); save();   // wipe the account (syncs the empty state to the cloud)
+  } else {
     localStorage.removeItem(LS_SET); localStorage.removeItem(LS_ENT); localStorage.removeItem(LS_FP); localStorage.removeItem(LS_FV);
-    settings=loadSettings(); entries={}; feriepenge={}; fritvalg={}; renderAll(); renderSettings(); refreshFormState(); toast("Cleared");
+    settings=loadSettings(); entries={}; feriepenge={}; fritvalg={};
   }
+  renderAll(); renderSettings(); refreshFormState(); toast("Cleared");
 });
 
 /* ---------- auth wire-up ---------- */
 document.getElementById("auth-login").addEventListener("click", async ()=>{
-  authError(""); const email=aVal("auth-email"), pass=document.getElementById("auth-pass").value;
+  authError("");
+  if(!supa){ authError("You're offline — connect to the internet and reload to log in."); return; }
+  const email=aVal("auth-email"), pass=document.getElementById("auth-pass").value;
   if(!email||!pass){ authError("Enter your email and password."); return; }
   const btn=document.getElementById("auth-login"); btn.disabled=true; btn.textContent="Logging in…";
   const {error}=await supa.auth.signInWithPassword({email, password:pass});
@@ -869,7 +905,9 @@ document.getElementById("auth-login").addEventListener("click", async ()=>{
   if(error) authError(error.message);
 });
 document.getElementById("auth-signup").addEventListener("click", async ()=>{
-  authError(""); const email=aVal("auth-email"), pass=document.getElementById("auth-pass").value;
+  authError("");
+  if(!supa){ authError("You're offline — connect to the internet and reload to sign up."); return; }
+  const email=aVal("auth-email"), pass=document.getElementById("auth-pass").value;
   if(!email||!pass){ authError("Enter an email and password to sign up."); return; }
   if(pass.length<6){ authError("Password must be at least 6 characters."); return; }
   const btn=document.getElementById("auth-signup"); btn.disabled=true; btn.textContent="Creating…";
@@ -880,26 +918,45 @@ document.getElementById("auth-signup").addEventListener("click", async ()=>{
 });
 ["auth-email","auth-pass"].forEach(id=>document.getElementById(id).addEventListener("keydown", e=>{ if(e.key==="Enter") document.getElementById("auth-login").click(); }));
 
-document.getElementById("btn-logout").addEventListener("click", async ()=>{ await supa.auth.signOut(); });
+document.getElementById("btn-logout").addEventListener("click", async ()=>{ if(supa) await supa.auth.signOut(); });
 
-supa.auth.onAuthStateChange((event, session)=>{
+if(supa) supa.auth.onAuthStateChange((event, session)=>{
   if(event==="SIGNED_IN" && session && session.user){ onAuthed(session.user); }
   else if(event==="SIGNED_OUT"){
     currentUid=null; authingFor=null; clearTimeout(syncTimer);
+    localStorage.removeItem("salary.lastUid");
     document.getElementById("auth-pass").value=""; authError("");
     showAuth(true);
   }
 });
 
 /* ---------- init ---------- */
+/* no network at all (CDN script didn't load): open the last account's cached data read/write-locally */
+function offlineStart(){
+  const uid=localStorage.getItem("salary.lastUid");
+  let cache=null;
+  if(uid){ try{ cache=JSON.parse(localStorage.getItem("salary.cache."+uid)); }catch(_){} }
+  if(cache){
+    currentUid=uid; applyData(cache);
+    const em=document.getElementById("acct-email"); if(em) em.textContent="(offline)";
+    document.getElementById("acct-sync").textContent="offline — changes saved on this device";
+    showAuth(false);
+    document.getElementById("in-date").value=todayStr();
+    renderHeader(); refreshFormState(); renderSummary(); renderSettings(); switchTab("track");
+  } else {
+    showAuth(true); authError("Couldn't load — check your connection and try again.");
+  }
+}
 document.getElementById("in-date").value=todayStr();
 (async ()=>{
+  if(!supa){ offlineStart(); return; }
   try{
     const {data}=await supa.auth.getSession();
     if(data.session && data.session.user){ await onAuthed(data.session.user); }
     else { showAuth(true); }
   }catch(e){ authError("Could not reach the server. Check your connection and reload."); showAuth(true); }
 })();
+if("serviceWorker" in navigator){ navigator.serviceWorker.register("sw.js").catch(()=>{}); }
 </script>
 </body>
 </html>
