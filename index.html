@@ -12,98 +12,149 @@
 <title>Salary Tracker</title>
 <style>
   :root{
-    --bg:#0f1115; --card:#1a1d24; --card2:#22262f; --line:#2c313c;
-    --txt:#e8eaed; --muted:#9aa0aa; --accent:#4f8cff; --accent2:#2bd47a;
-    --ot:#ffb02e; --night:#a78bfa; --danger:#ff5a5f; --radius:16px;
+    --bg:#0a0c11; --bg2:#10131b; --card:#151a26; --card2:#1d2331;
+    --line:#242c3e; --line2:#303a52;
+    --txt:#eef1f7; --muted:#8b93a6; --accent:#5b9dff; --accent2:#35da8d;
+    --ot:#ffb54d; --night:#b295ff; --danger:#ff6470; --radius:20px;
+    color-scheme:dark;
   }
   *{box-sizing:border-box; -webkit-tap-highlight-color:transparent;}
+  html{background:var(--bg);}
   html,body{margin:0; padding:0;}
   body{
-    background:var(--bg); color:var(--txt);
-    font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;
-    padding:env(safe-area-inset-top) 0 0 0; padding-bottom:84px;
+    background:
+      radial-gradient(120% 46% at 50% -8%, rgba(91,157,255,.14), transparent 60%),
+      radial-gradient(80% 30% at 100% 4%, rgba(53,218,141,.06), transparent 55%),
+      var(--bg);
+    color:var(--txt);
+    font-family:-apple-system,BlinkMacSystemFont,"SF Pro Text","Segoe UI",Roboto,sans-serif;
+    -webkit-font-smoothing:antialiased;
+    padding:env(safe-area-inset-top) 0 0 0; padding-bottom:112px;
     max-width:560px; margin:0 auto; min-height:100vh;
   }
   h1,h2,h3{margin:0;}
-  .wrap{padding:16px;}
-  header{padding:18px 16px 8px; display:flex; align-items:baseline; justify-content:space-between;}
-  header h1{font-size:22px; letter-spacing:-.3px;}
-  header .sub{color:var(--muted); font-size:13px;}
-  .card{background:var(--card); border:1px solid var(--line); border-radius:var(--radius); padding:16px; margin-bottom:14px;}
+  h3{font-size:16px; letter-spacing:-.2px;}
+  .wrap{padding:14px 16px;}
+  header{padding:20px 18px 10px; display:flex; align-items:center; justify-content:space-between;}
+  .hrow{display:flex; align-items:center; gap:12px;}
+  .logo{
+    width:38px; height:38px; border-radius:12px; flex:0 0 auto;
+    background:linear-gradient(140deg,#26365c,#0d1017);
+    border:1px solid var(--line2);
+    display:flex; align-items:center; justify-content:center;
+    color:var(--accent2); font-weight:800; font-size:15px; letter-spacing:-.5px;
+    box-shadow:0 6px 16px rgba(0,0,0,.35);
+  }
+  header h1{font-size:20px; font-weight:800; letter-spacing:-.4px;}
+  header .sub{color:var(--muted); font-size:12.5px; margin-top:1px;}
+  .card{
+    background:linear-gradient(180deg, rgba(255,255,255,.025), rgba(255,255,255,0) 55%), var(--card);
+    border:1px solid var(--line); border-radius:var(--radius);
+    padding:18px; margin-bottom:14px;
+    box-shadow:0 10px 26px rgba(0,0,0,.28);
+  }
+  .card.hero{
+    background:linear-gradient(165deg, rgba(53,218,141,.16), rgba(53,218,141,.02) 58%), var(--card);
+    border-color:rgba(53,218,141,.28);
+  }
   .row{display:flex; gap:10px;}
   .row>*{flex:1;}
-  label{display:block; font-size:12px; color:var(--muted); margin:0 0 5px 2px; text-transform:uppercase; letter-spacing:.4px;}
+  label{display:block; font-size:11px; font-weight:600; color:var(--muted); margin:0 0 6px 3px; text-transform:uppercase; letter-spacing:.6px;}
   input,select{
-    width:100%; background:var(--card2); border:1px solid var(--line); color:var(--txt);
-    border-radius:12px; padding:13px 12px; font-size:16px; outline:none;
+    width:100%; background:var(--bg2); border:1.5px solid var(--line); color:var(--txt);
+    border-radius:13px; padding:13px 12px; font-size:16px; outline:none;
+    transition:border-color .15s ease, box-shadow .15s ease;
   }
-  input:focus,select:focus{border-color:var(--accent);}
+  input:focus,select:focus{border-color:var(--accent); box-shadow:0 0 0 3px rgba(91,157,255,.16);}
+  input::placeholder{color:#5a6275;}
   .field{margin-bottom:12px;}
   button{
-    border:none; border-radius:12px; padding:14px; font-size:16px; font-weight:600;
-    background:var(--accent); color:#fff; width:100%; cursor:pointer;
+    border:none; border-radius:14px; padding:15px; font-size:16px; font-weight:700;
+    background:linear-gradient(135deg,#66a6ff,#3d7cf2); color:#fff; width:100%; cursor:pointer;
+    box-shadow:0 8px 20px rgba(61,124,242,.25);
+    transition:transform .08s ease, filter .15s ease;
   }
-  button.ghost{background:var(--card2); color:var(--txt); border:1px solid var(--line);}
-  button.danger{background:transparent; color:var(--danger); border:1px solid var(--danger);}
-  button.mini{padding:8px 10px; font-size:13px; width:auto; background:var(--card2); border:1px solid var(--line); color:var(--txt);}
-  .big{font-size:34px; font-weight:700; letter-spacing:-1px;}
-  .big.green{color:var(--accent2);}
+  button:active{transform:scale(.975); filter:brightness(1.12);}
+  button.ghost{background:var(--card2); color:var(--txt); border:1px solid var(--line2); box-shadow:none;}
+  button.danger{background:transparent; color:var(--danger); border:1.5px solid rgba(255,100,112,.45); box-shadow:none;}
+  button.mini{padding:9px 12px; font-size:13px; font-weight:600; width:auto; background:var(--card2); border:1px solid var(--line2); color:var(--txt); box-shadow:none; border-radius:11px;}
+  .big{font-size:42px; font-weight:800; letter-spacing:-1.5px; font-variant-numeric:tabular-nums;}
+  .big.green{color:var(--accent2); text-shadow:0 0 28px rgba(53,218,141,.35);}
   .muted{color:var(--muted);}
-  .pill{display:inline-block; font-size:11px; padding:3px 8px; border-radius:20px; background:var(--card2); color:var(--muted); border:1px solid var(--line);}
+  .pill{display:inline-block; font-size:12px; font-weight:700; padding:6px 11px; border-radius:20px; background:rgba(53,218,141,.1); color:var(--accent2); border:1px solid rgba(53,218,141,.28); font-variant-numeric:tabular-nums;}
   .split{display:flex; justify-content:space-between; align-items:center;}
   .stat{flex:1; text-align:center;}
-  .stat .n{font-size:19px; font-weight:700;}
-  .stat .l{font-size:11px; color:var(--muted); text-transform:uppercase; letter-spacing:.4px;}
-  .entry{display:flex; align-items:center; justify-content:space-between; padding:13px 14px; border:1px solid var(--line); border-radius:12px; margin-bottom:9px; background:var(--card); cursor:pointer;}
-  .entry:active{background:var(--card2);}
-  .entry.off{opacity:.6;}
-  .entry.future{border-style:dashed; opacity:.75;}
-  .entry.today{border-color:var(--accent);}
-  .entry .d{font-weight:600;}
-  .entry .meta{font-size:12px; color:var(--muted); margin-top:3px;}
-  .entry .amt{text-align:right; font-weight:700; white-space:nowrap;}
-  .entry .amt .tag{font-size:11px; font-weight:600; display:block;}
-  .entry .amt .tag.ot{color:var(--ot);}
-  .entry .amt .tag.night{color:var(--night);}
-  .entry .amt .tag.adj{color:var(--accent);}
-  .nav{position:fixed; bottom:0; left:0; right:0; max-width:560px; margin:0 auto; display:flex; background:var(--card); border-top:1px solid var(--line); padding-bottom:env(safe-area-inset-bottom);}
-  .nav button{background:none; color:var(--muted); font-weight:500; font-size:11px; padding:10px 0 12px; border-radius:0; display:flex; flex-direction:column; align-items:center; gap:3px;}
-  .nav button.active{color:var(--accent);}
-  .nav .ic{font-size:20px;}
+  .stat .n{font-size:20px; font-weight:800; font-variant-numeric:tabular-nums;}
+  .stat .l{font-size:10px; color:var(--muted); text-transform:uppercase; letter-spacing:.6px; margin-top:2px;}
+  .entry{display:flex; align-items:center; gap:12px; padding:11px 13px; border:1px solid var(--line); border-radius:16px; margin-bottom:9px; background:var(--card); cursor:pointer; transition:transform .08s ease, border-color .15s ease;}
+  .entry:active{transform:scale(.985); background:var(--card2);}
+  .entry.off{opacity:.55;}
+  .entry.future{border-style:dashed; opacity:.72;}
+  .entry.today{border-color:rgba(91,157,255,.55); box-shadow:0 0 0 1px rgba(91,157,255,.2);}
+  .entry .db{flex:0 0 auto; width:42px; height:42px; border-radius:13px; background:var(--bg2); border:1px solid var(--line); display:flex; flex-direction:column; align-items:center; justify-content:center; gap:1px;}
+  .entry .db .dn{font-size:15px; font-weight:800; line-height:1; font-variant-numeric:tabular-nums;}
+  .entry .db .dw{font-size:8.5px; font-weight:700; color:var(--muted); text-transform:uppercase; letter-spacing:.7px; line-height:1;}
+  .entry.today .db{background:rgba(91,157,255,.16); border-color:rgba(91,157,255,.5);}
+  .entry.today .db .dn{color:var(--accent);}
+  .entry .grow{flex:1; min-width:0;}
+  .entry .d{font-weight:600; font-size:14.5px;}
+  .entry .meta{font-size:12px; color:var(--muted); margin-top:2px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;}
+  .entry .amt{text-align:right; font-weight:700; white-space:nowrap; font-variant-numeric:tabular-nums; font-size:14.5px;}
+  .entry .amt .tag{font-size:10px; font-weight:700; display:inline-block; margin:4px 0 0 4px; padding:2.5px 7px; border-radius:8px;}
+  .entry .amt .tag.ot{color:var(--ot); background:rgba(255,181,77,.13);}
+  .entry .amt .tag.night{color:var(--night); background:rgba(178,149,255,.13);}
+  .entry .amt .tag.adj{color:var(--accent); background:rgba(91,157,255,.13);}
+  .nav{
+    position:fixed; bottom:calc(10px + env(safe-area-inset-bottom)); left:14px; right:14px;
+    max-width:532px; margin:0 auto; display:flex; gap:4px;
+    background:rgba(18,22,33,.86); backdrop-filter:blur(20px); -webkit-backdrop-filter:blur(20px);
+    border:1px solid var(--line2); border-radius:24px; padding:7px;
+    box-shadow:0 16px 40px rgba(0,0,0,.5);
+    z-index:100;
+  }
+  .nav button{flex:1; background:none; box-shadow:none; color:var(--muted); font-weight:600; font-size:10.5px; letter-spacing:.2px; padding:8px 0 7px; border-radius:17px; display:flex; flex-direction:column; align-items:center; gap:3px; transition:color .15s ease, background .15s ease;}
+  .nav button.active{color:#fff; background:linear-gradient(150deg, rgba(91,157,255,.28), rgba(91,157,255,.08));}
+  .nav button.active .ic{color:var(--accent);}
+  .nav .ic{width:21px; height:21px; display:block;}
+  .nav .ic svg{width:100%; height:100%; display:block;}
   .tab{display:none;}
-  .tab.active{display:block;}
-  .month-nav{display:flex; align-items:center; justify-content:space-between; margin-bottom:14px;}
-  .month-nav button{width:44px; padding:10px; background:var(--card2); border:1px solid var(--line);}
-  .month-nav .m{font-weight:700; font-size:17px;}
+  .tab.active{display:block; animation:fadeUp .22s ease;}
+  @keyframes fadeUp{from{opacity:0; transform:translateY(7px);} to{opacity:1; transform:none;}}
+  .month-nav{display:flex; align-items:center; justify-content:space-between; margin-bottom:14px; background:var(--card); border:1px solid var(--line); border-radius:18px; padding:6px;}
+  .month-nav button{width:46px; padding:11px 0; background:var(--card2); border:1px solid var(--line2); border-radius:13px; box-shadow:none; font-size:17px; font-weight:700; color:var(--txt);}
+  .month-nav .m{font-weight:700; font-size:15px; letter-spacing:-.1px;}
   .sched-day{display:flex; align-items:center; gap:8px; margin-bottom:8px;}
-  .sched-day .nm{width:40px; font-size:13px; color:var(--muted);}
-  .sched-day input{padding:9px 8px; flex:1; min-width:0;}
+  .sched-day .nm{width:42px; font-size:12.5px; font-weight:600; color:var(--muted);}
+  .sched-day input{padding:10px 8px; flex:1; min-width:0; border-radius:11px;}
   .sched-day .dash{color:var(--muted);}
-  .hint{font-size:12px; color:var(--muted); margin:6px 2px 0; line-height:1.5;}
-  .empty{text-align:center; color:var(--muted); padding:30px 10px; font-size:14px;}
-  .toast{position:fixed; bottom:96px; left:50%; transform:translateX(-50%); background:var(--accent2); color:#07210f; padding:10px 18px; border-radius:30px; font-weight:600; font-size:14px; opacity:0; transition:opacity .25s; pointer-events:none; z-index:50;}
-  .toast.show{opacity:1;}
-  .calc-out{display:flex; gap:8px; margin-top:6px;}
-  .calc-out .box{flex:1; background:var(--card2); border:1px solid var(--line); border-radius:12px; padding:10px 6px; text-align:center;}
-  .calc-out .box .v{font-weight:700; font-size:16px;}
-  .calc-out .box .k{font-size:10px; color:var(--muted); text-transform:uppercase;}
+  .hint{font-size:12.5px; color:var(--muted); margin:6px 2px 0; line-height:1.55;}
+  .empty{text-align:center; color:var(--muted); padding:34px 10px; font-size:14px;}
+  .toast{position:fixed; bottom:calc(86px + env(safe-area-inset-bottom)); left:50%; transform:translateX(-50%) translateY(6px); background:var(--accent2); color:#052b17; padding:11px 20px; border-radius:30px; font-weight:700; font-size:14px; opacity:0; transition:opacity .22s ease, transform .22s ease; pointer-events:none; z-index:150; box-shadow:0 10px 26px rgba(0,0,0,.45); max-width:86vw; text-align:center;}
+  .toast.show{opacity:1; transform:translateX(-50%) translateY(0);}
+  .calc-out{display:grid; grid-template-columns:repeat(4,1fr); gap:8px; margin-top:8px;}
+  .calc-out .box{background:var(--bg2); border:1px solid var(--line); border-radius:14px; padding:12px 4px; text-align:center;}
+  .calc-out .box .v{font-weight:800; font-size:16px; font-variant-numeric:tabular-nums;}
+  .calc-out .box .k{font-size:9px; font-weight:600; color:var(--muted); text-transform:uppercase; letter-spacing:.5px; margin-top:3px;}
   .brk{margin-top:12px; border-top:1px solid var(--line); padding-top:10px;}
-  .brk .li{display:flex; justify-content:space-between; font-size:13px; padding:3px 0; color:var(--muted);}
-  .brk .li b{color:var(--txt); font-weight:600;}
-  .brk .li.total{font-size:15px; color:var(--txt); font-weight:700; margin-top:4px;}
+  .brk .li{display:flex; justify-content:space-between; gap:10px; font-size:13.5px; padding:4px 0; color:var(--muted);}
+  .brk .li b{color:var(--txt); font-weight:600; font-variant-numeric:tabular-nums; white-space:nowrap;}
+  .brk .li.total{font-size:15px; color:var(--txt); font-weight:700; margin-top:7px; padding-top:10px; border-top:1px solid var(--line);}
   .til-row{display:flex; gap:8px; align-items:center; margin-bottom:8px;}
   .til-row input.nm{flex:2;}
   .til-row input.rt{flex:1;}
-  .til-row .x{flex:0 0 auto; width:38px; padding:9px 0; text-align:center; background:var(--card2); border:1px solid var(--line); border-radius:10px; color:var(--danger); cursor:pointer; font-size:18px;}
-  .statusline{font-size:12px; padding:8px 10px; border-radius:10px; background:var(--card2); border:1px solid var(--line); margin-bottom:10px; color:var(--muted);}
+  .til-row .x{flex:0 0 auto; width:40px; padding:10px 0; text-align:center; background:var(--card2); border:1px solid var(--line2); border-radius:12px; color:var(--danger); cursor:pointer; font-size:17px; line-height:1;}
+  .statusline{font-size:12.5px; padding:10px 12px; border-radius:12px; background:var(--bg2); border:1px solid var(--line); border-left:3px solid var(--accent); margin-bottom:12px; color:var(--muted); line-height:1.5;}
   .statusline b{color:var(--txt);}
-  details{margin-bottom:14px;} summary{cursor:pointer; font-weight:600; padding:6px 2px;}
+  details{margin-bottom:14px;}
+  summary{cursor:pointer; font-weight:600; padding:8px 4px; color:var(--muted); font-size:14px;}
+  summary:active{color:var(--txt);}
   /* ---- auth screen ---- */
-  .auth-screen{position:fixed; inset:0; z-index:200; background:var(--bg); display:flex; flex-direction:column; justify-content:center; padding:28px 22px; max-width:560px; margin:0 auto; overflow:auto;}
+  .auth-screen{position:fixed; inset:0; z-index:200; background:radial-gradient(120% 50% at 50% -10%, rgba(91,157,255,.16), transparent 60%), var(--bg); display:flex; flex-direction:column; justify-content:center; padding:28px 24px calc(28px + env(safe-area-inset-bottom)); max-width:560px; margin:0 auto; overflow:auto;}
   .auth-screen.hidden{display:none;}
-  .auth-screen h1{font-size:27px; letter-spacing:-.4px; margin-bottom:6px;}
-  .auth-screen .sub{color:var(--muted); font-size:14px; margin-bottom:26px; line-height:1.5;}
-  .auth-screen .err{color:var(--danger); font-size:13px; min-height:18px; margin:8px 2px 4px; line-height:1.4;}
+  .auth-logo{width:58px; height:58px; border-radius:17px; font-size:23px; margin-bottom:20px;}
+  .auth-screen h1{font-size:28px; font-weight:800; letter-spacing:-.6px; margin-bottom:8px;}
+  .auth-screen .sub{color:var(--muted); font-size:14.5px; margin-bottom:28px; line-height:1.55;}
+  .auth-screen .err{color:var(--danger); font-size:13px; min-height:18px; margin:8px 2px 6px; line-height:1.4;}
   .synced{font-size:11px; color:var(--accent2);}
 </style>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
@@ -111,6 +162,7 @@
 <body>
 
 <div class="auth-screen" id="authScreen">
+  <div class="logo auth-logo">kr</div>
   <h1>Salary Tracker</h1>
   <div class="sub">Log in to sync your hours, settings and pay across all your devices.</div>
   <div class="field"><label>Email</label><input type="email" id="auth-email" autocomplete="username" placeholder="you@example.com" /></div>
@@ -123,7 +175,10 @@
 
 
 <header>
-  <div><h1>Salary Tracker</h1><div class="sub" id="headerSub">Loading…</div></div>
+  <div class="hrow">
+    <div class="logo">kr</div>
+    <div><h1>Salary Tracker</h1><div class="sub" id="headerSub">Loading…</div></div>
+  </div>
   <span class="pill" id="ratePill">—</span>
 </header>
 
@@ -172,7 +227,7 @@
       <button id="nextM">›</button>
     </div>
 
-    <div class="card" style="text-align:center;">
+    <div class="card hero" style="text-align:center;">
       <div class="muted" style="font-size:12px; text-transform:uppercase; letter-spacing:.5px;">Projected gross this period</div>
       <div class="big green" id="sumTotal">—</div>
       <div class="muted" style="font-size:13px; margin-top:2px;">est. net after tax: <b id="sumNet" style="color:var(--txt)">—</b></div>
@@ -299,9 +354,9 @@
 <div class="toast" id="toast"></div>
 
 <nav class="nav">
-  <button data-tab="track" class="active"><span class="ic">＋</span>Adjust</button>
-  <button data-tab="summary"><span class="ic">▦</span>Summary</button>
-  <button data-tab="settings"><span class="ic">⚙</span>Settings</button>
+  <button data-tab="track" class="active"><span class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3H5a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.4 2.6a2.1 2.1 0 1 1 3 3L12 15l-4 1 1-4Z"/></svg></span>Adjust</button>
+  <button data-tab="summary"><span class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3v18h18"/><path d="M8 17v-3"/><path d="M13 17V9"/><path d="M18 17V5"/></svg></span>Summary</button>
+  <button data-tab="settings"><span class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z"/><circle cx="12" cy="12" r="3"/></svg></span>Settings</button>
 </nav>
 
 <script>
@@ -669,10 +724,10 @@ function renderSummary(){
   dates.slice().reverse().forEach(d=>{
     const rd=resolveDay(d);
     const dt=new Date(d+"T00:00:00");
-    const dateLbl=`${DAYS[dt.getDay()]} ${dt.getDate()}/${dt.getMonth()+1}`;
+    const bubble=`<div class="db"><div class="dn">${dt.getDate()}</div><div class="dw">${DAYS[dt.getDay()]}</div></div>`;
     const cls="entry"+(d===today?" today":(d>today?" future":""));
     if(rd.off){
-      rowsHtml.push(`<div class="${cls} off" data-d="${d}"><div><div class="d">${dateLbl}</div><div class="meta">Day off${rd.note?` · ${escapeHtml(rd.note)}`:""}</div></div><div class="amt">${fmtMoney(0)}<span class="tag adj">day off</span></div></div>`);
+      rowsHtml.push(`<div class="${cls} off" data-d="${d}">${bubble}<div class="grow"><div class="d">Day off</div>${rd.note?`<div class="meta">${escapeHtml(rd.note)}</div>`:""}</div><div class="amt">${fmtMoney(0)}<div><span class="tag adj">day off</span></div></div></div>`);
       return;
     }
     if(!rd.worked) return; // weekend / non-working, no exception
@@ -681,13 +736,13 @@ function renderSummary(){
     t.worked+=c.worked; t.night+=c.night; t.ot+=c.ot;
     t.base+=c.base; t.tillaeg+=c.tillaeg; t.nightPay+=c.nightPay; t.otPay+=c.otPay; t.gross+=c.gross; t.days++;
     t.regBase+=c.regBase; t.regTillaeg+=c.regTillaeg; t.otFull+=c.otFull;
-    rowsHtml.push(`<div class="${cls}" data-d="${d}"><div><div class="d">${dateLbl}</div>
-      <div class="meta">${rd.start}–${rd.end}${Number(rd.brk)?` · ${rd.brk}m`:""} · ${fmtH(c.worked)}${rd.note?` · ${escapeHtml(rd.note)}`:""}</div></div>
-      <div class="amt">${fmtMoney(c.gross)}
-        ${rd.source==="logged"?`<span class="tag adj">adjusted</span>`:""}
-        ${c.ot>0?`<span class="tag ot">+${fmtH(c.ot)} OT</span>`:""}
-        ${c.night>0?`<span class="tag night">${fmtH(c.night)} night</span>`:""}
-      </div></div>`);
+    const tags=
+      (rd.source==="logged"?`<span class="tag adj">adjusted</span>`:"")+
+      (c.ot>0?`<span class="tag ot">+${fmtH(c.ot)} OT</span>`:"")+
+      (c.night>0?`<span class="tag night">${fmtH(c.night)} night</span>`:"");
+    rowsHtml.push(`<div class="${cls}" data-d="${d}">${bubble}<div class="grow"><div class="d">${rd.start}–${rd.end}</div>
+      <div class="meta">${fmtH(c.worked)}${Number(rd.brk)?` · ${rd.brk}m break`:""}${rd.note?` · ${escapeHtml(rd.note)}`:""}</div></div>
+      <div class="amt">${fmtMoney(c.gross)}${tags?`<div>${tags}</div>`:""}</div></div>`);
   });
 
   const pKey = ymd(r.start);
