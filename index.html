@@ -29,7 +29,7 @@
     color:var(--txt);
     font-family:-apple-system,BlinkMacSystemFont,"SF Pro Text","Segoe UI",Roboto,sans-serif;
     -webkit-font-smoothing:antialiased;
-    padding:env(safe-area-inset-top) 0 0 0; padding-bottom:112px;
+    padding:env(safe-area-inset-top) 0 0 0; padding-bottom:calc(118px + env(safe-area-inset-bottom));
     max-width:560px; margin:0 auto; min-height:100vh;
   }
   h1,h2,h3{margin:0;}
@@ -58,15 +58,18 @@
     border-color:rgba(53,218,141,.28);
   }
   .row{display:flex; gap:10px;}
-  .row>*{flex:1;}
+  .row>*{flex:1; min-width:0;}
   label{display:block; font-size:11px; font-weight:600; color:var(--muted); margin:0 0 6px 3px; text-transform:uppercase; letter-spacing:.6px;}
   input,select{
     width:100%; background:var(--bg2); border:1.5px solid var(--line); color:var(--txt);
-    border-radius:13px; padding:13px 12px; font-size:16px; outline:none;
+    border-radius:13px; padding:13px 12px; font-size:16px; outline:none; min-height:51px;
     transition:border-color .15s ease, box-shadow .15s ease;
   }
   input:focus,select:focus{border-color:var(--accent); box-shadow:0 0 0 3px rgba(91,157,255,.16);}
   input::placeholder{color:#5a6275;}
+  /* iOS: date/time inputs have an intrinsic width + centered text that breaks flex rows */
+  input[type="date"],input[type="time"]{-webkit-appearance:none; appearance:none; min-width:0; text-align:left;}
+  input::-webkit-date-and-time-value{text-align:left;}
   .field{margin-bottom:12px;}
   button{
     border:none; border-radius:14px; padding:15px; font-size:16px; font-weight:700;
@@ -125,7 +128,7 @@
   .month-nav .m{font-weight:700; font-size:15px; letter-spacing:-.1px;}
   .sched-day{display:flex; align-items:center; gap:8px; margin-bottom:8px;}
   .sched-day .nm{width:42px; font-size:12.5px; font-weight:600; color:var(--muted);}
-  .sched-day input{padding:10px 8px; flex:1; min-width:0; border-radius:11px;}
+  .sched-day input{padding:10px 8px; flex:1; min-width:0; border-radius:11px; min-height:40px;}
   .sched-day .dash{color:var(--muted);}
   .hint{font-size:12.5px; color:var(--muted); margin:6px 2px 0; line-height:1.55;}
   .empty{text-align:center; color:var(--muted); padding:34px 10px; font-size:14px;}
@@ -133,7 +136,7 @@
   .toast.show{opacity:1; transform:translateX(-50%) translateY(0);}
   .calc-out{display:grid; grid-template-columns:repeat(4,1fr); gap:8px; margin-top:8px;}
   .calc-out .box{background:var(--bg2); border:1px solid var(--line); border-radius:14px; padding:12px 4px; text-align:center;}
-  .calc-out .box .v{font-weight:800; font-size:16px; font-variant-numeric:tabular-nums;}
+  .calc-out .box .v{font-weight:800; font-size:15px; font-variant-numeric:tabular-nums;}
   .calc-out .box .k{font-size:9px; font-weight:600; color:var(--muted); text-transform:uppercase; letter-spacing:.5px; margin-top:3px;}
   .brk{margin-top:12px; border-top:1px solid var(--line); padding-top:10px;}
   .brk .li{display:flex; justify-content:space-between; gap:10px; font-size:13.5px; padding:4px 0; color:var(--muted);}
@@ -200,7 +203,7 @@
       </div>
       <div class="calc-out">
         <div class="box"><div class="v" id="lp-worked">0h</div><div class="k" id="lp-worked-k">Worked</div></div>
-        <div class="box"><div class="v" style="color:var(--night)" id="lp-night">0h</div><div class="k">Night 18–06</div></div>
+        <div class="box"><div class="v" style="color:var(--night)" id="lp-night">0h</div><div class="k">Night</div></div>
         <div class="box"><div class="v" style="color:var(--ot)" id="lp-ot">0h</div><div class="k">Overtime</div></div>
         <div class="box"><div class="v green" id="lp-pay">—</div><div class="k">Gross pay</div></div>
       </div>
@@ -548,10 +551,8 @@ async function onAuthed(user){
 }
 
 /* ---------- helpers ---------- */
-function fmtMoney(n){
-  const v = (Math.round(n*100)/100).toLocaleString("da-DK",{minimumFractionDigits:2, maximumFractionDigits:2});
-  return v + " " + settings.currency;
-}
+function fmtNum(n){ return (Math.round(n*100)/100).toLocaleString("da-DK",{minimumFractionDigits:2, maximumFractionDigits:2}); }
+function fmtMoney(n){ return fmtNum(n) + " " + settings.currency; }
 function fmtH(h){ return (Math.round(h*100)/100).toFixed(2).replace(/\.00$/,"") + "h"; }
 function toMin(t){ if(!t) return null; const [h,m]=t.split(":").map(Number); return h*60+m; }
 function workedHours(start,end,brk){
@@ -686,7 +687,7 @@ function renderLivePreview(){
   document.getElementById("lp-worked").textContent = fmtH(c.worked);
   document.getElementById("lp-night").textContent  = fmtH(c.night);
   document.getElementById("lp-ot").textContent     = fmtH(c.ot);
-  document.getElementById("lp-pay").textContent    = c.worked ? fmtMoney(c.gross) : "—";
+  document.getElementById("lp-pay").textContent    = c.worked ? fmtNum(c.gross) : "—";
 
   const brk = document.getElementById("lp-brk");
   if(c.worked>0){
